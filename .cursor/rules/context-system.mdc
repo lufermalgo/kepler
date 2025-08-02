@@ -1,0 +1,1983 @@
+---
+alwaysApply: false
+---
+# context.system.md – Kepler Framework (Context Engineering Global)
+
+## 🚨 REFACTORIZACIÓN COMPLETA - DE COMPLEJO A SIMPLE
+
+> **Antes:** Framework complejo con 8+ integraciones, plugin system, IaC, AutoML, etc.
+> **Después:** Framework simple con Splunk + sklearn/XGBoost + Cloud Run básico
+
+## 🧭 Propósito del framework - REFACTORIZADO
+
+**Kepler** es un framework **simple y pragmático** diseñado para facilitar la integración bidireccional entre Splunk y modelos de ML básicos en entornos industriales. Su propósito es permitir que científicos de datos extraigan datos de Splunk, entrenen modelos simples y escriban los resultados de vuelta a Splunk de manera confiable.
+
+## 🎯 **Filosofía: Simple, Confiable, Incremental**
+
+Kepler prioriza **simplicidad sobre funcionalidad**:
+
+- **Una integración principal**: Splunk bidireccional (extracción + escritura)
+- **Un destino de compute**: Cloud Run únicamente (sin Vertex AI inicialmente)
+- **Un framework ML**: scikit-learn + XGBoost (sin AutoML inicialmente)
+- **Un sistema de monitoreo**: Splunk dashboards únicamente
+- **Un entorno de desarrollo**: Python + Jupyter/VSCode básico
+
+> 💡 **MVP Scope - Fase 1 (3-4 meses):**
+>
+> - **Splunk**: Extracción de metrics + escritura vía HEC
+> - **Cloud Run**: Despliegue básico de modelos como API
+> - **MLflow**: Solo tracking básico (sin registry complejo)
+> - **Un caso de uso**: Optimización simple validada manualmente
+>
+> **Future Phases:** Expansión gradual solo después de MVP exitoso
+
+---
+
+## 📁 **Estructura del Proyecto - CRÍTICA PARA CURSOR AI**
+
+### **🚨 IMPORTANTE: `.cursor/` DEBE PERMANECER EN LA RAÍZ**
+
+El directorio `.cursor/` contiene las reglas y configuración del IDE Cursor AI y **DEBE** permanecer en la raíz del proyecto (`/`) para funcionar correctamente. **NUNCA** mover este directorio a subcarpetas.
+
+### **Estructura del Framework (Para distribución)**
+
+```
+kepler/                     # ✅ Framework principal (SDK + CLI)
+├── core/                  # Lógica central del framework
+├── connectors/            # Conectores a Splunk, GCP, etc.
+├── trainers/              # Entrenadores de modelos ML
+├── deployers/             # Desplegadores (Cloud Run, etc.)
+├── utils/                 # Utilidades compartidas
+└── cli/                   # Comandos de línea de comandos
+
+pyproject.toml             # ✅ Configuración del paquete Python
+README.md                  # ✅ Documentación principal del framework
+.gitignore                 # ✅ Template para proyectos de usuario
+```
+
+### **Estructura de Desarrollo (Solo para contribuidores)**
+
+```
+tests/                     # ✅ Tests unitarios, integración, realistas
+├── unit/                  # Tests unitarios aislados
+├── integration/           # Tests con sistemas externos reales
+└── realistic/             # Tests end-to-end con datos realistas
+
+.cursor/                   # ✅ **CRÍTICO**: Configuración IDE Cursor AI (RAÍZ)
+├── rules/                 # Reglas y contexto del proyecto
+└── ...                    # Configuración específica de Cursor AI
+
+.venv/                     # ✅ Entorno virtual Python (desarrollo)
+pytest.ini                 # ✅ Configuración de tests
+```
+
+### **Documentación de Desarrollo (Oculta)**
+
+```
+.dev-docs/                 # ✅ Documentación interna de desarrollo
+├── SCRUM_PLAN.md          # Plan de desarrollo Scrum
+├── justificacion_negocio_kepler.md  # Justificación del proyecto
+└── ...                    # Otros documentos internos
+```
+
+### **⚠️ REGLAS DE LIMPIEZA**
+
+**✅ MANTENER (Esencial para framework):**
+- `kepler/` - Framework principal
+- `pyproject.toml` - Configuración de paquete
+- `README.md` - Documentación de usuario
+- `.gitignore` - Template para proyectos
+
+**🔄 DESARROLLO (Solo para contribuidores):**
+- `tests/` - Suite de pruebas
+- `.cursor/` - **CRÍTICO: NUNCA MOVER ESTA CARPETA**
+- `.venv/` - Entorno virtual local
+- `pytest.ini` - Configuración de tests
+
+**🗂️ ARCHIVO (Documentación interna):**
+- `.dev-docs/` - Documentación de desarrollo
+- **NO** eliminar, solo ocultar del usuario final
+
+**❌ ELIMINAR (Basura de desarrollo):**
+- `model_*.pkl` - Modelos temporales de tests
+- `test-project/` - Proyectos de prueba temporales
+- `logs/` - Logs de desarrollo
+- `kepler_framework.egg-info/` - Artefactos de build
+- `.pytest_cache/` - Cache de pytest
+- `.DS_Store` - Archivos del sistema
+- Cualquier archivo temporal de tests
+
+### **🎯 Estructura que ve el Usuario Final**
+
+Cuando un usuario instala Kepler (`pip install kepler-framework`) y crea un proyecto (`kepler init mi-proyecto`), verá:
+
+```
+mi-proyecto/               # Su proyecto de trabajo
+├── kepler.yml            # Configuración específica del proyecto
+├── .env.template         # Template de variables de entorno
+├── data/
+│   ├── raw/             # Datos extraídos de Splunk
+│   └── processed/       # Datos procesados para ML
+├── models/              # Modelos entrenados y serializados
+├── notebooks/           # Jupyter notebooks (opcional)
+├── logs/               # Logs específicos del proyecto
+└── README.md           # Documentación específica del proyecto
+```
+
+---
+
+## 🌍 Visión a futuro
+
+- Ser el framework de referencia open-source para MLOps industrial
+- Habilitar despliegue de modelos en múltiples nubes, edge y entornos híbridos
+- Democratizar el acceso a herramientas avanzadas de IA sin depender de infraestructura propietaria
+- Mantener una comunidad activa que contribuya con plugins, adaptadores y mejoras
+
+---
+
+## 🧠 Rol del agente IA
+
+Eres un ingeniero de software senior con experiencia en desarrollo de frameworks CLI y SDK, arquitecturas desacopladas y context engineering. Tu responsabilidad es:
+
+- Diseñar y construir todas las fases de Kepler
+- Seguir patrones de diseño y principios de ingeniería de software moderna
+- Garantizar desacoplamiento, mantenibilidad, escalabilidad y testabilidad
+- Cumplir estrictamente con este documento como sistema de instrucciones
+- Controlar sincronización con GitHub, automatizar pruebas y documentación continua
+- Dividir tareas extensas en subtareas manejables antes de ejecutar
+- Validar entregables por fase, manteniendo trazabilidad y control de calidad
+- Utilizar siempre técnicas de desarrollo robustas, pruebas unitarias, integración continua y documentación viva
+- Supervisar la integración de herramientas existentes como `splunklib`, SDKs de GCP, y librerías compatibles con modelos en múltiples frameworks
+- Entender que este framework puede ser importado por científicos de datos, analistas o ingenieros desde sus IDEs preferidos y debe facilitar al máximo la experiencia
+
+### 📋 Control del proyecto y tareas - MEJORADO
+
+#### **Definition of Done Específica**
+Una tarea sólo se puede cerrar si cumple TODOS estos criterios:
+
+**✅ Completada:**
+- Código implementado según especificación técnica
+- Todos los acceptance criteria cumplidos
+- Sin TODOs, FIXMEs o HACK pendientes
+- **External dependencies research completed** (si aplica)
+- **Latest documentation consulted** para librerías externas usadas
+- Code review aprobado por al menos 1 reviewer senior
+
+**✅ Probada:**
+- Unit tests: >85% coverage
+- Integration tests ejecutados exitosamente  
+- Performance tests dentro de SLA definido
+- Security tests aprobados (sin vulnerabilidades críticas)
+- Manual testing completado por product owner
+
+**✅ Validada:**
+- Automated quality gates passed
+- Regression tests ejecutados sin fallas
+- Compatibility tests con versiones anteriores
+- Load testing para funcionalidades críticas
+
+**✅ Documentada:**
+- API documentation actualizada (swagger/openapi)
+- User documentation actualizada
+- Technical architecture docs actualizados
+- CHANGELOG.md actualizado con breaking changes
+- Migration guides si aplica
+
+#### **Control de Calidad y Gates**
+
+**🚦 Quality Gates Obligatorios:**
+
+```yaml
+commit_level:
+  pre_commit_hooks: mandatory
+  linting_passed: mandatory
+  type_checking_passed: mandatory
+  basic_unit_tests: mandatory
+  security_scan: mandatory
+
+merge_level:
+  all_tests_passed: mandatory
+  code_coverage_min: 85%
+  no_critical_vulnerabilities: mandatory
+  performance_benchmarks_met: mandatory
+  documentation_updated: mandatory
+  breaking_changes_documented: mandatory
+
+release_level:
+  staging_testing_complete: mandatory
+  load_testing_passed: mandatory
+  security_audit_passed: mandatory
+  backward_compatibility_verified: mandatory
+  release_notes_complete: mandatory
+  rollback_plan_documented: mandatory
+```
+
+#### **Manejo de Errores y Rollback**
+
+```yaml
+error_detection:
+  automated_monitoring: "24/7 alerting system"
+  failed_pipeline_notifications: "immediate Slack alerts"
+  user_reported_issues: "tracked in GitHub Issues"
+
+incident_response:
+  immediate_rollback: "< 5 minutes for critical issues"
+  root_cause_analysis: "mandatory within 24h"
+  hotfix_deployment: "< 2 hours for critical fixes"
+  post_mortem_doc: "within 48h with lessons learned"
+
+prevention_measures:
+  feature_flags: "for all risky deployments"
+  canary_deployments: "for major changes"
+  blue_green_strategy: "for production deployments"
+  automated_rollback_triggers: "based on error rates"
+```
+
+#### **Comunicación y Feedback Loops**
+
+```yaml
+daily_communication:
+  progress_report: "automated via TODO.md updates"
+  blocker_identification: "tagged in GitHub Issues"
+  risk_assessment: "updated in project dashboard"
+
+weekly_communication:
+  sprint_review: "with stakeholders every Friday"
+  architecture_decisions: "documented in ADR format"
+  performance_metrics: "shared via automated dashboard"
+
+milestone_communication:
+  demo_sessions: "live demo to business stakeholders"
+  architecture_review: "with senior tech leads"
+  security_review: "with infrastructure team"
+  go_no_go_decisions: "documented with clear criteria"
+
+# NUEVO - User Feedback Loop (Analistas/Científicos)
+user_feedback_loop:
+  incremental_testing:
+    frequency: "every major feature completion"
+    participants: "target analysts and data scientists"
+    duration: "1-2 weeks testing period"
+    documentation: "progressive user guides and tutorials"
+    
+  early_access_program:
+    activation: "when core functionality is testable"
+    access_method: "private beta releases or sandbox environment"
+    feedback_collection: "structured surveys + direct interviews"
+    response_time: "feedback incorporated within next sprint"
+    
+  user_acceptance_gates:
+    feature_approval: "minimum 80% user satisfaction score"
+    usability_validation: "task completion rate > 90%"
+    documentation_adequacy: "users can complete tasks independently"
+    performance_acceptance: "meets defined SLA from user perspective"
+```
+
+#### **Métricas de Éxito MVP - REALISTAS**
+
+```yaml
+mvp_success_criteria:
+  functionality:
+    splunk_integration: "Can extract data and write predictions successfully"
+    model_training: "Can train sklearn + xgboost models from Splunk data"
+    deployment: "Can deploy to Cloud Run and get predictions"
+    end_to_end: "Complete workflow works for 1 use case"
+
+  user_acceptance:
+    scientist_feedback: "2-3 scientists can use it without major issues"
+    task_completion: "Users can complete basic workflow in <2 hours"
+    documentation_clarity: "Users can setup using only README"
+
+  technical_baseline:
+    api_response: "Predictions return in <5 seconds (not 200ms)"
+    uptime: "Works during business hours (not 99.9%)"
+    errors: "No critical bugs that block basic usage"
+
+# POST-MVP: Métricas más ambiciosas solo después de validar MVP
+```
+
+#### **Testing Strategy MVP - REALISTA Y PRÁCTICA**
+
+```yaml
+mvp_testing_principles:
+  realistic_testing: "MANDATORIO - Tests con sistemas reales, no mocks"
+  progressive_testing: "Unit → Integration → End-to-end con incrementalidad"
+  fail_gracefully: "Tests deben manejar fallos de conectividad elegantemente"
+  security_first: "Configuración segura validada en cada test"
+
+test_categories:
+  unit_tests:
+    scope: "Lógica de negocio pura (sin I/O externo)"
+    examples: "Validación de datos, transformaciones, algoritmos ML"
+    mocking_policy: "PROHIBIDO para conectividad externa - usar tests de integración"
+    
+  integration_tests:
+    scope: "Conectividad real con sistemas externos"
+    splunk_tests: "REALES con instancia Splunk configurada"
+    gcp_tests: "REALES con proyecto GCP configurado"
+    fallback_behavior: "Tests deben pasar con 'SKIP' si no hay conectividad"
+    
+  end_to_end_tests:
+    scope: "Workflows completos con usuarios reales"
+    data_sources: "Datos reales de sistemas productivos (anonimizados)"
+    user_validation: "Científicos/analistas validan usabilidad"
+
+test_configuration:
+  environment_validation:
+    required_for_integration: "Variables de entorno y conectividad real"
+    graceful_skip: "Si no hay acceso, test se marca como SKIPPED, no FAILED"
+    documentation: "Clear setup instructions en tests/integration/README.md"
+    
+  realistic_data:
+    policy: "NO usar datos sintéticos para tests de integración"
+    sources: "Datos reales anonimizados o sandbox environments"
+    validation: "Tests deben validar con volúmenes y formatos reales"
+    
+  security_testing:
+    credentials: "Tests no deben hardcodear credenciales"
+    env_validation: "Validar que variables sensibles están presentes"
+    connection_security: "Tests de SSL, autenticación, autorización"
+
+# REGLA DE ORO: Los mocks solo para unit tests de lógica pura
+# INTEGRACIÓN SIEMPRE CON SISTEMAS REALES
+```
+
+#### **Change Management Process**
+
+```yaml
+change_request:
+  impact_assessment: "mandatory for all changes"
+  stakeholder_approval: "required for breaking changes"
+  timeline_adjustment: "documented with justification"
+  risk_evaluation: "high/medium/low with mitigation"
+
+change_implementation:
+  feature_flags: "for incremental rollout"
+  backward_compatibility: "maintained for 2 major versions"
+  migration_path: "documented with automation scripts"
+  rollback_plan: "tested in staging environment"
+
+change_validation:
+  user_acceptance_testing: "by product owner"
+  performance_impact_assessment: "before production"
+  security_review: "for all infrastructure changes"
+  documentation_updates: "synchronized with code changes"
+```
+
+#### **External Dependencies Research Protocol** ← NUEVO
+
+```yaml
+pre_implementation_research:
+  mandatory_for:
+    - "any external library or framework integration"
+    - "cloud service APIs (GCP, AWS, Azure)"
+    - "third-party tools (MLflow, Prometheus, etc.)"
+    - "data processing libraries (pandas, numpy, etc.)"
+    
+  research_requirements:
+    documentation_review:
+      - "read latest official documentation"
+      - "review API reference and breaking changes"
+      - "check migration guides and changelogs"
+      - "identify security best practices"
+      
+    version_compatibility:
+      - "verify latest stable version"
+      - "check compatibility with Python version"
+      - "validate integration patterns"
+      - "review performance implications"
+      
+    knowledge_update:
+      - "update internal knowledge base"
+      - "document key changes from previous version"
+      - "note new features that could benefit project"
+      - "identify deprecated methods to avoid"
+
+research_tools_required:
+  web_search: "for latest documentation and updates"
+  library_docs: "official documentation access"
+  version_checking: "pip show, npm info, etc."
+  changelog_review: "GitHub releases, official changelogs"
+
+research_validation:
+  proof_of_concept: "small test implementation with latest version"
+  compatibility_testing: "integration tests with existing codebase"
+  performance_benchmarking: "if performance is critical"
+  security_review: "for new security-related dependencies"
+
+research_documentation:
+  research_notes:
+    location: "docs/research/"
+    format: "[YYYY-MM-DD]_[library-name]_research.md"
+    content:
+      - "library version researched"
+      - "key API changes identified"
+      - "integration patterns selected"
+      - "potential issues and mitigations"
+      - "implementation recommendations"
+      
+  knowledge_base_update:
+    internal_docs: "update relevant architecture docs"
+    api_patterns: "document preferred integration patterns"
+    version_matrix: "maintain compatibility matrix"
+    lessons_learned: "capture insights for future use"
+
+# Ejemplos de librerías que REQUIEREN research obligatorio:
+critical_dependencies:
+  google_cloud:
+    - "google-cloud-aiplatform (Vertex AI)"
+    - "google-cloud-run"
+    - "google-cloud-bigquery" 
+    - "google-cloud-storage"
+    
+  mlops_tools:
+    - "mlflow"
+    - "prometheus-client"
+    - "grafana-api"
+    
+  data_processing:
+    - "pandas"
+    - "numpy" 
+    - "pyarrow"
+    - "pydantic"
+    
+  ml_frameworks:
+    - "scikit-learn"
+    - "xgboost"
+    - "lightgbm"
+    - "torch"
+    - "tensorflow"
+    - "transformers"
+    
+  splunk_integration:
+    - "splunk-sdk"
+    - "requests" (for custom API calls)
+```
+
+---
+
+## 🎯 API Function Definitions - NUEVA SECCIÓN
+
+### **Monitoring & Dashboard Functions**
+
+```python
+# kp.monitoring.create_dashboard()
+def create_dashboard(
+    name: str,
+    components: List[str],
+    platform: str = "splunk",  # splunk | grafana
+    index_source: str = None,
+    refresh_interval: str = "30s"
+) -> Dashboard:
+    """
+    Creates dashboards in target platforms using their native APIs.
+    
+    SPLUNK: Uses REST API /servicesNS/admin/search/data/ui/views
+    GRAFANA: Uses API /api/dashboards/db
+    
+    Returns Dashboard object with .splunk_url, .grafana_url, .panels
+    """
+
+# kp.analytics.create_kpi_dashboard()
+def create_kpi_dashboard(
+    kpi_definitions: List[Dict],
+    target_index: str,
+    real_time: bool = True
+) -> KPIDashboard:
+    """
+    Creates KPI calculation engine and associated Splunk dashboard.
+    
+    IMPLEMENTATION:
+    - Creates SPL searches for each KPI formula
+    - Sets up scheduled searches in Splunk (if real_time=True)
+    - Generates Splunk dashboard XML with KPI panels
+    - Configures alerts for threshold violations
+    
+    Returns KPIDashboard with .write_to_splunk() method
+    """
+
+# kpis.write_to_splunk()
+def write_to_splunk(
+    self,
+    index: str,
+    real_time: bool = False,
+    batch_size: int = 1000,
+    flush_interval: str = "30s"
+) -> SplunkWriter:
+    """
+    Writes calculated KPIs to Splunk using HEC Metrics endpoint.
+    
+    IMPLEMENTATION:
+    - Uses /services/collector/metrics endpoint
+    - JSON format with metric_name, _value, dimensions, _time
+    - If real_time=True: Background scheduler recalculates every flush_interval
+    - Uses BackgroundScheduler for continuous operation
+    
+    Returns SplunkWriter with .status, .metrics_written, .stop()
+    """
+```
+
+### **Experiment & AutoML Functions**
+
+```python
+# kp.experiment.create()
+def create(
+    name: str,
+    type: str = "standard",  # standard | optimization | automl
+    tracking_uri: str = None
+) -> Experiment:
+    """
+    Creates MLflow experiment with Kepler-specific configuration.
+    
+    IMPLEMENTATION:
+    - Uses MLflow API: POST /api/2.0/mlflow/experiments/create
+    - Sets up automatic logging to Splunk for key metrics
+    - Configures artifact storage in GCS
+    - Returns Experiment object with .run_automl(), .get_best_model()
+    """
+
+# experiment.run_automl()
+def run_automl(
+    self,
+    data: pd.DataFrame,
+    target: str,
+    objective: str = "minimize",  # minimize | maximize
+    constraints: Dict = None,
+    algorithms: List[str] = None,
+    optimization_time: str = "2h"
+) -> AutoMLResult:
+    """
+    Runs AutoML optimization with industrial constraints.
+    
+    IMPLEMENTATION:
+    - Creates Vertex AI CustomJob for scalable training
+    - Tests multiple algorithms: xgboost, lightgbm, neural_network
+    - Uses Optuna for hyperparameter optimization
+    - Validates all constraints during training
+    - Logs everything to MLflow automatically
+    
+    Returns AutoMLResult with .best_model, .show_report(), .performance_metrics
+    """
+```
+
+### **Deployment Functions**
+
+```python
+# kp.deploy.create_deployment()
+def create_deployment(
+    model: Any,
+    name: str,
+    environment: str = "development",  # development | staging | production
+    config: Dict = None
+) -> Deployment:
+    """
+    Creates model deployment with monitoring and Splunk integration.
+    
+    IMPLEMENTATION:
+    - Containerizes model using MLflow's docker build
+    - Deploys to Vertex AI Endpoints or Cloud Run based on config
+    - Sets up automatic result writing to Splunk HEC
+    - Configures Prometheus metrics collection
+    - Creates Splunk dashboard for deployment monitoring
+    
+    Returns Deployment with .endpoint_url, .monitoring_url, .status
+    """
+```
+
+### **Data Access Functions**
+
+```python
+# kp.data.splunk_metrics()
+def splunk_metrics(
+    index: str,
+    metrics: List[str],
+    time_range: str = "24h",
+    granularity: str = "5m"
+) -> pd.DataFrame:
+    """
+    Extracts metrics from Splunk using mstats command (optimized for metrics indexes).
+    
+    IMPLEMENTATION:
+    - Uses splunk-sdk with optimized mstats query
+    - Query: | mstats avg(metric1), avg(metric2) WHERE index=X span=granularity
+    - Converts results to pandas DataFrame with datetime index
+    - Implements caching for repeated queries
+    
+    Returns DataFrame with metric columns and datetime index
+    """
+
+# kp.output.splunk_metrics()
+def splunk_metrics(
+    index: str,
+    metrics: Dict,
+    dimensions: Dict = None
+) -> None:
+    """
+    Writes metrics to Splunk HEC Metrics endpoint.
+    
+    IMPLEMENTATION:
+    - Uses HEC /services/collector/metrics endpoint
+    - Formats as: {"metric_name:prefix.metric": value, "dimensions": {...}}
+    - Handles batching and retry logic
+    - Validates metric names and values
+    """
+```
+
+#### **Risk Management Proactivo**
+
+```yaml
+risk_identification:
+  weekly_risk_assessment: "every sprint planning"
+  dependency_analysis: "external and internal dependencies"
+  technical_debt_tracking: "measured and prioritized"
+  external_dependency_monitoring: "version updates and security"
+
+risk_mitigation:
+  risk_register: "with owner, impact, probability, mitigation"
+  contingency_plans: "for high-impact risks"
+  regular_reviews: "risk status updated weekly"
+  escalation_procedures: "clear escalation path defined"
+
+risk_categories:
+  technical: "performance, scalability, security"
+  business: "timeline, scope, resources"
+  external: "dependencies, infrastructure, compliance"
+  organizational: "team capacity, skill gaps"
+```
+
+- El agente debe mantener un archivo `TODO.md` con tareas abiertas, subtareas y progreso por fase
+- Las tareas extensas deben descomponerse antes de ser ejecutadas
+- Se deben registrar los avances por commit firmados y mantener trazabilidad total en GitHub
+- Cada fase deberá ser aprobada formalmente antes de iniciar la siguiente
+- El `TODO.md` funcionará como backlog de desarrollo y debe estar siempre actualizado
+
+---
+
+## 🧱 Fundamentos del framework
+
+### 🔁 Principios base
+
+- Modularidad: cada componente es independiente, inyectable y extensible
+- Desacoplamiento extremo: separación estricta entre CLI, lógica core y adaptadores
+- Transparencia: logs detallados, sin efectos colaterales silenciosos
+- Predictibilidad: comportamiento determinista, validaciones explícitas
+- Cross-cloud: abstrae la infraestructura; no depende de un vendor específico
+- Dualidad CLI + SDK: el framework debe poder usarse desde CLI o importarse como librería en notebooks/scripts
+- Compatibilidad con cualquier entorno de desarrollo: integración fluida con los IDEs favoritos del usuario sin restricciones
+- **Infrastructure as Code**: gestión declarativa de stacks de desarrollo y producción
+- **Developer Experience First**: herramientas modernas de desarrollo integradas
+- **Fail-fast principle**: detección temprana de errores con feedback inmediato
+- **Zero-downtime deployments**: actualizaciones sin interrupciones de servicio
+- **Security by design**: consideraciones de seguridad en cada componente
+
+### 📐 Arquitectura Simplificada - MVP
+
+```plaintext
+[CLI - typer]              [SDK - kepler.*]
+    ↓                           ↓
+[Kepler Core - Simplified]
+    ├── Splunk Connector (bidireccional)
+    ├── Simple Model Trainer (sklearn + xgboost)
+    └── Cloud Run Deployer
+```
+
+**Eliminado en MVP:**
+- ❌ Infrastructure Manager (demasiado complejo)
+- ❌ Plugin Loader (over-engineering) 
+- ❌ Multiple Deployment Targets (solo Cloud Run)
+- ❌ Multiple Data Adapters (solo Splunk)
+- ❌ Complex Monitoring Tools (solo Splunk dashboards)
+- ❌ Developer Tools integration (focus en funcionalidad)
+
+> **Principio MVP:** Cada componente debe ser **esencial** para el caso de uso principal
+
+### 🧩 Componentes MVP - Solo lo Esencial
+
+**Core Components (MVP):**
+- **Splunk Connector**: 
+  - Extracción vía REST API (mstats para metrics)
+  - Escritura vía HEC (solo metrics, no events inicialmente)
+  - Configuración simple con token/host
+  
+- **Model Trainer**:
+  - sklearn.RandomForestRegressor/Classifier únicamente
+  - XGBoost básico (sin hyperparameter tuning automático)
+  - Serialización simple con joblib
+  
+- **Cloud Run Deployer**:
+  - Container básico con Flask API
+  - Un endpoint: /predict
+  - Sin auto-scaling complejo (configuración fija)
+
+**Eliminado del MVP:**
+- ❌ Multiple data adapters (solo Splunk)
+- ❌ Plugin system (over-engineering)
+- ❌ Infrastructure management (manual setup)
+- ❌ Complex monitoring (solo logs básicos)
+- ❌ Experiment orchestration (manual experiments)
+- ❌ Multiple deployment targets (solo Cloud Run)
+
+### 📦 CLI MVP - Solo Comandos Esenciales
+
+#### **Comandos MVP (5 comandos únicamente)**
+- `kepler init <project-name>`: Crea estructura básica + kepler.yml template
+- `kepler extract <query>`: Extrae datos de Splunk → CSV local
+- `kepler train <data.csv>`: Entrena modelo sklearn/xgboost → model.joblib
+- `kepler deploy <model.joblib>`: Despliega a Cloud Run → URL endpoint
+- `kepler predict <endpoint> <data>`: Test de predicción
+
+#### **Eliminado del MVP**
+- ❌ `kepler connect` (configuración vía kepler.yml únicamente)
+- ❌ `kepler explore` (usar Jupyter manualmente)
+- ❌ `kepler monitor` (logs de Cloud Run únicamente)
+- ❌ `kepler shell` (complejidad innecesaria)
+- ❌ `kepler validate` (testing manual)
+- ❌ `kepler doc` (documentación estática)
+- ❌ **Todos los comandos `kepler infra`** (setup manual GCP)
+
+> **Filosofía MVP:** Si el comando no es absolutamente necesario para el flujo básico, se elimina
+
+### 🔧 ~~Plugin SDK~~ - ELIMINADO DEL MVP
+
+**Razón de Eliminación:**
+- Over-engineering para caso de uso inicial
+- Aumenta complejidad sin valor inmediato
+- Plugin system requiere mantenimiento extenso
+- Focus en funcionalidad core, no en extensibilidad
+
+**Future Phase:** Plugin system se considerará solo después de MVP exitoso y demanda comprobada
+
+---
+
+## 🤖 Soporte de Librerías MVP - REFACTORIZADO
+
+### 🎯 Filosofía Simplificada: Menos es Más
+
+Kepler MVP sigue el principio **"Solo lo Esencial, Bien Hecho"**:
+- **2 librerías únicamente**: scikit-learn + XGBoost
+- **Sin sistema de plugins** (over-engineering)
+- **Sin frameworks deep learning** (complejidad innecesaria para casos industriales básicos)
+
+### 📦 MVP - Solo 2 Librerías
+
+#### **Sklearn Básico**
+```python
+# Solo algoritmos básicos, sin hyperparameter tuning automático
+model = kp.train.sklearn(data, algorithm="RandomForest")  # Clasificación/Regresión
+model = kp.train.sklearn(data, algorithm="LinearRegression")  # Regresión simple
+```
+
+#### **XGBoost Básico**
+```python
+# XGBoost con parámetros fijos, sin optimización
+model = kp.train.xgboost(data, task="regression")  # O "classification"
+```
+
+#### **Eliminado del MVP**
+- ❌ LightGBM, CatBoost (duplicación de funcionalidad)
+- ❌ PyTorch, TensorFlow (demasiado complejo para casos industriales básicos)
+- ❌ Transformers, NLP (scope muy específico)
+- ❌ Computer Vision (no es caso de uso industrial común)
+- ❌ Time Series especializados (usar sklearn básico)
+- ❌ Reinforcement Learning (scope muy avanzado)
+
+### 🔌 ~~Extensibilidad~~ - NO EN MVP
+
+**Future Phases Only:**
+- Plugins y extensibilidad se considerarán **solo después** de MVP exitoso
+- Foco actual: hacer que sklearn + XGBoost funcionen perfectamente
+- Principio: "Una cosa bien hecha vale más que 10 cosas a medias"
+
+### 🧠 ~~Modelos Custom~~ - NO EN MVP
+
+**Eliminado del MVP:**
+- ❌ Arquitecturas personalizadas (demasiado complejo)
+- ❌ Pipelines ML complejos (over-engineering)
+- ❌ Sistema de plugins (complejidad innecesaria)
+- ❌ Plugin registry (infrastructure overhead)
+
+**MVP Approach:**
+- Solo modelos estándar sklearn + XGBoost
+- Configuración simple vía kepler.yml
+- Sin extensibilidad custom (por ahora)
+
+> **Próximas fases:** Extensibilidad se añadirá solo si hay demanda comprobada del MVP
+
+## ✅ MVP Garantías Simplificadas
+
+### **Para Científicos/Analistas:**
+1. **API simple y consistente** para sklearn + XGBoost
+2. **Integración Splunk bidireccional** confiable
+3. **Deployment básico** a Cloud Run que funciona
+
+### **Para la Organización:**
+1. **Riesgo controlado**: Solo 2 librerías ML, scope limitado
+2. **ROI medible**: Un caso de uso, resultados cuantificables
+3. **Extensible en futuro**: Arquitectura permite crecimiento gradual
+
+> **Filosofía MVP:** "Dos librerías bien integradas valen más que 20 mal integradas"
+
+---
+
+## 🏗️ ~~Gestión de Infraestructura~~ - SIMPLIFICADA PARA MVP
+
+### 🎯 Setup Manual Únicamente
+
+#### **Para MVP - No Infrastructure as Code**
+**Razón:** IaC añade complejidad significativa sin valor inmediato para MVP
+
+**Setup Manual Requerido:**
+- **GCP Project**: Crear manualmente con billing activado
+- **Cloud Run**: Habilitar API manualmente
+- **Splunk**: Usar instancia existente de la organización
+- **Credenciales**: Configurar service account manualmente
+
+#### **Para Científicos y Analistas**
+- **Setup único**: IT configura una vez, científicos usan siempre
+- **Documentación**: Guía paso a paso para setup inicial
+- **Sin complexity**: No necesitan entender infraestructura
+
+### 🏪 ~~Tipos de Stacks~~ - ELIMINADO DEL MVP
+
+**MVP Approach:** 
+- Solo **un ambiente**: Development/Production híbrido
+- **Cloud Run básico** con configuración fija
+- **Sin alta disponibilidad** (over-engineering para MVP)
+- **Sin disaster recovery** (complejidad innecesaria)
+
+### 🔍 ~~Validación Automática~~ - MANUAL EN MVP
+
+**MVP Approach:**
+- **Validación manual** siguiendo documentación paso a paso
+- **Sin health checks** automáticos (logs de Cloud Run únicamente)
+- **Sin monitoreo de quotas** (manual, alerts básicos GCP)
+
+> **Future Phases:** Automatización se añadirá gradualmente según necesidad
+
+---
+
+## 🛠️ Developer Experience MVP - SIMPLIFICADO
+
+### 📝 Type Hints Básicos
+
+- **Type hints** en funciones principales únicamente
+- **Sin stubs custom** (usar las disponibles)
+- **Sin MyPy** en MVP (complejidad adicional)
+- **Autocompletado básico** con docstrings simples
+
+### 🎨 Herramientas Básicas
+
+- **Black** para formateo (configuración por defecto)
+- **Sin linting complex** (flake8 básico únicamente)
+- **Sin pre-commit hooks** (overhead para MVP)
+- **Sin configuraciones IDE** custom (estándar Python)
+
+### 📚 Documentación Simple
+
+- **README.md básico** con ejemplos de uso
+- **Docstrings simples** sin over-documentation
+- **Sin generación automática** de docs (manual únicamente) 
+- **Sin tutoriales progresivos** (one-page getting started)
+
+### 🔧 ~~Validación Avanzada~~ - NO EN MVP
+
+- **Sin debugging tools** especiales (print statements + logs)
+- **Sin performance profiling** (premature optimization)
+- **Sin health checks** automáticos
+
+> **Focus MVP:** Funcionalidad sobre herramientas de desarrollo fancy
+
+---
+
+## 🛡️ Buenas Prácticas MVP - PRAGMÁTICAS
+
+### **Principios Esenciales (MVP)**
+- **KISS**: Keep It Simple, Stupid - simplicidad sobre elegancia
+- **YAGNI**: You Aren't Gonna Need It - solo lo necesario ahora
+- **Manual over Automation**: Automatizar solo después de validar valor
+- **Monolith first**: Una aplicación, sin microservices complexity
+
+### **Desarrollo MVP**
+- **Testing básico**: Unit tests críticos únicamente
+- **No TDD**: Pragmatic testing después de funcionalidad básica
+- **Documentación mínima**: README + docstrings básicos
+- **SemVer simple**: 0.1.0, 0.2.0, etc.
+
+### **Arquitectura MVP**
+- **Simple functions**: Sin arquitectura hexagonal compleja
+- **No DI frameworks**: Inyección manual/simple únicamente  
+- **No plugins**: Hard-coded sklearn + xgboost
+- **No IaC**: Setup manual únicamente
+
+> **Post-MVP:** Refactoring hacia patrones complejos solo después de validar producto-mercado fit
+
+---
+
+## 🏛️ Integraciones MVP - SOLO LO ESENCIAL
+
+Kepler actúa como **wrapper simple** sobre herramientas específicas:
+
+### 📊 Fuentes de Datos (MVP)
+- **splunk-sdk**: Solo para extracción vía REST API y escritura vía HEC
+- **pandas**: Manipulación básica de datos (no pyarrow en MVP)
+
+### 🤖 Frameworks ML (MVP)
+- **scikit-learn**: Solo RandomForest + LinearRegression  
+- **xgboost**: Solo XGBRegressor + XGBClassifier básicos
+
+### ☁️ Infraestructura (MVP)
+- **google-cloud-run**: Solo deployment básico, sin Vertex AI
+- **requests**: Llamadas HTTP simples
+
+### 📈 ~~MLOps~~ - MÍNIMO EN MVP
+- **Sin Prometheus/Grafana** (complejidad innecesaria)
+- **MLflow básico**: Solo tracking simple, sin registry complejo
+
+**Eliminado del MVP:**
+- ❌ BigQuery, Vertex AI, Kubernetes
+- ❌ PyTorch, TensorFlow, Transformers  
+- ❌ Docker containerization compleja
+- ❌ Monitoring stack completo
+
+---
+
+## 🏗️ Stack MVP - ULTRA SIMPLIFICADO
+
+### 🎯 Solo 3 Componentes
+
+#### **1. Splunk Enterprise (Existente)**
+- **Solo Metrics Index**: Para datos de sensores industriales
+- **Solo HEC**: Para escribir resultados de predicciones
+- **Solo REST API**: Para extraer datos históricos
+- **Configuración**: host + token únicamente
+
+#### **2. Google Cloud Run**
+- **Un servicio**: API Flask básica con endpoint /predict
+- **Sin auto-scaling**: Configuración fija
+- **Sin load balancing**: Una instancia únicamente
+- **Sin networking complejo**: Default VPC
+
+#### **3. MLflow básico (opcional en MVP)**
+- **Solo tracking**: Log de métricas básicas
+- **Sin registry**: Modelos almacenados localmente
+- **Sin serving**: Not needed para MVP
+
+**Eliminado completamente:**
+- ❌ BigQuery, GCS, Cloud SQL
+- ❌ Vertex AI, GKE, Kubernetes  
+- ❌ Prometheus, Grafana, monitoring stack
+- ❌ Networking complejo, security avanzada
+- ❌ Multiple environments, HA, disaster recovery
+
+---
+
+## 📋 Fases del Proyecto MVP - TIMELINE REALISTA
+
+### **Fase 1 (Mes 1-2): Integración Splunk Básica**
+- ✅ Conexión a Splunk vía REST API
+- ✅ Extracción de metrics a pandas DataFrame
+- ✅ Escritura básica vía HEC
+- ✅ CLI: `kepler init`, `kepler extract`
+
+### **Fase 2 (Mes 2-3): Training Básico**
+- ✅ sklearn RandomForest integration
+- ✅ XGBoost básico integration
+- ✅ Serialización con joblib
+- ✅ CLI: `kepler train`
+
+### **Fase 3 (Mes 3-4): Deployment Básico**
+- ✅ Flask API básica
+- ✅ Cloud Run deployment
+- ✅ CLI: `kepler deploy`, `kepler predict`
+
+### **Fase 4 (Mes 4): Validación & Documentación**
+- ✅ Un caso de uso completo funcionando
+- ✅ Documentación básica
+- ✅ User testing con 2-3 científicos
+
+> **Total MVP: 4 meses**, no 3 días como en el escenario original
+
+---
+
+## 🏗️ Configuración MVP Simplificada
+
+### **kepler.yml - Configuración Única**
+```yaml
+# Configuración simple para MVP
+splunk:
+  host: "https://splunk.company.com:8089"
+  token: "${SPLUNK_TOKEN}"
+  hec_token: "${SPLUNK_HEC_TOKEN}"
+  metrics_index: "sensor_metrics"
+
+gcp:
+  project_id: "my-ml-project"
+  region: "us-central1"
+
+training:
+  default_algorithm: "random_forest"  # o "xgboost"
+  test_size: 0.2
+  random_state: 42
+
+deployment:
+  service_name: "kepler-model-api"
+  port: 8080
+```
+
+### **Setup Manual (Una Vez)**
+1. **GCP**: Crear proyecto + habilitar Cloud Run API
+2. **Splunk**: Obtener tokens (REST + HEC)
+3. **Credenciales**: Service account JSON
+4. **kepler.yml**: Configurar según template
+
+> **Sin Infrastructure as Code**, **sin Terraform**, **sin complexity**
+
+---
+
+## 🔄 Flujo de Datos Bidireccional con Splunk ← NUEVA SECCIÓN
+
+### 🎯 Ciclo de Vida Cerrado de Datos
+
+Kepler implementa un **flujo bidireccional completo** con Splunk que garantiza trazabilidad end-to-end:
+
+```
+[Splunk] → [Extracción] → [Procesamiento] → [Inferencia] → [Resultados] → [Splunk]
+```
+
+### 📊 Configuración de Escritura de Inferencias
+
+#### **Adaptadores de Escritura Splunk (Dual Index Support)**
+- **HTTP Event Collector (HEC)**: Para eventos en tiempo real (event indexes)
+- **Metrics HTTP Event Collector**: Para métricas numéricas (metrics indexes)
+- **Splunk REST API**: Para escritura batch programática (events y metrics)
+- **Universal Forwarders**: Para archivos y logs locales (events)
+- **Splunk DB Connect**: Para escritura via base de datos (events y metrics)
+
+#### **Formatos de Salida Configurables (Events + Metrics)**
+```yaml
+# kepler.yml - Configuración de escritura de inferencias
+inference_output:
+  splunk:
+    enabled: true
+    
+    # Configuración para Event Indexes
+    events:
+      method: "hec"  # hec | api | forwarder | db_connect
+      endpoint: "https://splunk.company.com:8088/services/collector/event"
+      token: "${SPLUNK_HEC_EVENT_TOKEN}"
+      index: "ml_predictions_events"
+      sourcetype: "kepler:inference"
+      
+      # Formato de eventos (logs, alertas, predicciones categóricas)
+      event_format:
+        timestamp: "prediction_time"
+        fields:
+          - model_name
+          - model_version  
+          - input_features
+          - prediction_result
+          - confidence_score
+          - execution_time
+          - environment  # dev | staging | prod
+          - prediction_type  # classification | anomaly_detection
+    
+    # Configuración para Metrics Indexes  
+    metrics:
+      method: "metrics_hec"  # metrics_hec | api | db_connect
+      endpoint: "https://splunk.company.com:8088/services/collector/metrics"
+      token: "${SPLUNK_HEC_METRICS_TOKEN}"
+      index: "ml_predictions_metrics"
+      
+      # Formato de métricas (valores numéricos, scores, latencias)
+      metrics_format:
+        timestamp: "prediction_time"
+        metric_name_prefix: "kepler.model"
+        dimensions:
+          - model_name
+          - model_version
+          - environment
+        measurements:
+          - prediction_score      # Valor numérico de predicción
+          - confidence_score      # Score de confianza
+          - inference_latency_ms  # Latencia de inferencia
+          - input_feature_count   # Número de features
+          - drift_score          # Score de drift detection
+        
+    # Configuración de batch (aplicable a ambos)
+    batch:
+      size: 1000
+      flush_interval: "30s"
+      retry_attempts: 3
+      
+    # Enriquecimiento automático
+    enrichment:
+      add_metadata: true
+      include_model_lineage: true
+      include_data_source: true
+      
+    # Estrategia de routing automático
+    auto_routing:
+      enabled: true
+      rules:
+        - condition: "prediction_type == 'regression'"
+          destination: "metrics"
+        - condition: "prediction_type == 'classification'"  
+          destination: "events"
+        - condition: "output_type == 'alert'"
+          destination: "events"
+        - condition: "output_type == 'score'"
+          destination: "metrics"
+```
+
+#### **Patrones de Despliegue para Escritura**
+
+**Tiempo Real (Real-time Inference)**
+```python
+# Escritura inmediata a Splunk
+predictor = kp.deploy.vertex_ai(model, 
+    output_config={
+        "splunk": {
+            "method": "hec",
+            "realtime": True,
+            "index": "realtime_predictions"
+        }
+    }
+)
+```
+
+**Batch Processing**
+```python
+# Procesamiento batch con escritura diferida
+batch_processor = kp.batch.create_pipeline([
+    kp.data.splunk_source("search index=sensors"),
+    kp.models.xgboost_predictor(model),
+    kp.output.splunk_sink(index="batch_predictions")
+])
+```
+
+**Edge Computing**
+```python
+# Despliegue en edge con sincronización
+edge_deployment = kp.deploy.edge(model,
+    sync_config={
+        "splunk": {
+            "method": "forwarder",
+            "sync_interval": "5m",
+            "offline_buffer": True
+        }
+    }
+)
+```
+
+### 🔧 Configuración Avanzada
+
+#### **Multi-Index Strategy (Events + Metrics)**
+```yaml
+splunk_indexes:
+  # Event Indexes (para datos estructurados, logs, alertas)
+  event_indexes:
+    raw_data: "sensor_events"           # Eventos originales de sensores
+    features: "feature_engineering"     # Logs de feature engineering  
+    predictions: "ml_predictions"       # Predicciones categóricas, alertas
+    model_logs: "ml_model_logs"         # Logs de entrenamiento y despliegue
+    drift_alerts: "ml_drift_alerts"     # Alertas de drift detection
+    
+  # Metrics Indexes (para datos numéricos, series temporales)
+  metrics_indexes:
+    sensor_metrics: "sensor_metrics"         # Métricas numéricas de sensores
+    model_metrics: "ml_model_metrics"        # Métricas de performance de modelos
+    prediction_scores: "ml_prediction_scores" # Scores numéricos de predicciones
+    latency_metrics: "ml_latency_metrics"    # Métricas de latencia de inferencia
+    drift_scores: "ml_drift_scores"          # Scores de drift detection
+    feature_stats: "ml_feature_stats"        # Estadísticas de features
+    
+  # Configuración de retention por tipo
+  retention_policies:
+    event_indexes: "90d"      # 90 días para eventos
+    metrics_indexes: "365d"   # 1 año para métricas (más compactas)
+```
+
+#### **Metadata Tracking**
+```yaml
+tracking:
+  model_lineage:
+    track_data_source: true
+    track_feature_engineering: true
+    track_model_version: true
+    track_hyperparameters: true
+    
+  inference_context:
+    request_id: true
+    user_context: true
+    business_context: true
+    timestamp_precision: "milliseconds"
+```
+
+#### **Monitoring & Alerting**
+```yaml
+monitoring:
+  splunk_dashboards:
+    - model_performance
+    - prediction_volume  
+    - inference_latency
+    - data_drift_detection
+    
+  alerts:
+    - condition: "prediction_volume < threshold"
+      action: "slack_notification"
+    - condition: "inference_latency > 5s"  
+      action: "pagerduty_alert"
+```
+
+### 🎯 Casos de Uso por Tipo de Índice
+
+#### **Event Indexes - Casos de Uso**
+```python
+# Predicciones categóricas (clasificación)
+result = model.predict(sensor_data)
+kp.output.splunk_events(
+    index="ml_predictions",
+    data={
+        "prediction": "ANOMALY_DETECTED",
+        "asset_id": "PUMP_001", 
+        "severity": "HIGH",
+        "recommendation": "Schedule maintenance"
+    }
+)
+
+# Alertas y notificaciones
+if drift_detected:
+    kp.output.splunk_events(
+        index="ml_drift_alerts",
+        data={
+            "alert_type": "MODEL_DRIFT",
+            "model_name": "predictive_maintenance_v2",
+            "drift_threshold_exceeded": True,
+            "action_required": "Retrain model"
+        }
+    )
+
+# Logs de auditoría
+kp.output.splunk_events(
+    index="ml_model_logs",
+    data={
+        "event": "MODEL_DEPLOYMENT",
+        "model_version": "v1.2.3",
+        "deployed_by": "data_engineer_001",
+        "environment": "production"
+    }
+)
+```
+
+#### **Metrics Indexes - Casos de Uso**
+```python
+# Scores numéricos de predicción
+prediction_score = model.predict_proba(features)[0][1]
+kp.output.splunk_metrics(
+    index="ml_prediction_scores",
+    metrics={
+        "kepler.model.prediction_score": prediction_score,
+        "kepler.model.confidence": confidence_score,
+        "kepler.model.inference_latency_ms": latency_ms
+    },
+    dimensions={
+        "model_name": "anomaly_detector",
+        "asset_id": "SENSOR_001"
+    }
+)
+
+# Métricas de performance del modelo
+kp.output.splunk_metrics(
+    index="ml_model_metrics", 
+    metrics={
+        "kepler.model.accuracy": 0.95,
+        "kepler.model.precision": 0.92,
+        "kepler.model.recall": 0.98,
+        "kepler.model.f1_score": 0.95
+    },
+    dimensions={
+        "model_name": "classification_model_v3",
+        "evaluation_date": "2024-01-15"
+    }
+)
+
+# Métricas de drift detection
+kp.output.splunk_metrics(
+    index="ml_drift_scores",
+    metrics={
+        "kepler.drift.psi_score": 0.15,        # Population Stability Index
+        "kepler.drift.kl_divergence": 0.08,    # KL Divergence
+        "kepler.drift.wasserstein_distance": 0.12
+    }
+)
+```
+
+#### **Consultas Optimizadas por Tipo**
+
+**Para Event Indexes (búsquedas textuales y categóricas)**
+```spl
+# Buscar alertas de drift en las últimas 24 horas
+index=ml_drift_alerts earliest=-24h alert_type="MODEL_DRIFT"
+| stats count by model_name, action_required
+
+# Analizar predicciones categóricas
+index=ml_predictions prediction="ANOMALY_DETECTED" 
+| timechart span=1h count by severity
+```
+
+**Para Metrics Indexes (agregaciones numéricas optimizadas)**
+```spl
+# Análisis de scores de predicción con mstats
+| mstats avg("kepler.model.prediction_score") as avg_score,
+         max("kepler.model.prediction_score") as max_score
+  WHERE index=ml_prediction_scores span=5m by model_name
+
+# Métricas de latencia de inferencia
+| mstats avg("kepler.model.inference_latency_ms") as avg_latency
+  WHERE index=ml_latency_metrics span=1h
+| eval avg_latency_seconds = avg_latency/1000
+```
+
+### ✅ Beneficios del Flujo Bidireccional con Dual Index Support
+
+1. **Trazabilidad Completa**: Desde datos originales hasta inferencias finales
+2. **Auditoria Automática**: Todos los eventos de ML quedan registrados
+3. **Monitoreo Unificado**: Dashboards centralizados en Splunk
+4. **Compliance**: Cumplimiento regulatorio con logs completos
+5. **Debugging**: Capacidad de replay y análisis de predicciones
+6. **Business Intelligence**: Análisis de impacto de modelos ML
+7. **Performance Optimizada**: Queries eficientes según tipo de dato (events vs metrics)
+8. **Storage Efficiency**: Compresión optimizada para métricas numéricas
+9. **Retention Policies**: Gestión diferenciada de retención por tipo de índice
+
+---
+
+## 🎯 Alineación con Dolores de Negocio ← NUEVA SECCIÓN
+
+### 📋 Mapeo Dolor → Solución Framework
+
+#### **Dolor 1: Escasa compatibilidad con frameworks de modelado modernos**
+**Solución Framework:**
+- **Model Trainers**: Wrapper unificado para sklearn, xgboost, pytorch, keras, transformers
+- **Plugin System**: Carga dinámica de nuevos frameworks sin modificar core
+- **SDK Importable**: `import kepler` desde cualquier notebook con frameworks favoritos
+
+**Validación en Testing:**
+```python
+# Test que valida compatibilidad multi-framework
+def test_multiple_framework_support():
+    # Sklearn
+    sklearn_model = kp.train.sklearn(data, algorithm="RandomForest")
+    assert sklearn_model.predict(test_data) is not None
+    
+    # XGBoost  
+    xgb_model = kp.train.xgboost(data, params=xgb_config)
+    assert xgb_model.predict(test_data) is not None
+    
+    # PyTorch
+    pytorch_model = kp.train.pytorch(data, architecture="MLP")
+    assert pytorch_model.predict(test_data) is not None
+```
+
+#### **Dolor 2: Limitada flexibilidad para experimentar con diferentes tipos de modelos**
+**Solución Framework:**
+- **Experiment Runner**: Orquestador que permite entrenar múltiples modelos en paralelo
+- **Model Comparison**: Comparación automática de performance entre modelos
+- **Hyperparameter Tuning**: Optimización automática de hiperparámetros
+- **MLflow Integration**: Tracking automático de todos los experimentos
+
+**Validación en Testing:**
+```python
+def test_multi_model_experimentation():
+    experiment = kp.Experiment("model_comparison")
+    
+    # Entrenar múltiples modelos
+    models = experiment.train_multiple([
+        "sklearn.RandomForest",
+        "xgboost.XGBClassifier", 
+        "pytorch.MLP"
+    ], data=dataset)
+    
+    # Validar que todos se entrenaron
+    assert len(models) == 3
+    assert all(model.is_trained for model in models)
+    
+    # Validar comparación automática
+    best_model = experiment.get_best_model()
+    assert best_model.performance_metrics is not None
+```
+
+#### **Dolor 3: Complejidad en la puesta en producción y monitoreo de modelos**
+**Solución Framework:**
+- **Deployment Targets**: Despliegue automatizado a GCP Vertex AI, Docker, Edge
+- **Infrastructure as Code**: Gestión completa de stacks dev/prod con `kepler infra`
+- **Monitoring Automático**: Integración con Prometheus, Grafana, Splunk dashboards
+- **One-command Deployment**: `kepler deploy --env production`
+
+**Validación en Testing:**
+```python
+def test_automated_deployment_pipeline():
+    # Entrenar modelo
+    model = kp.train.xgboost(training_data)
+    
+    # Desplegar automáticamente
+    endpoint = kp.deploy.vertex_ai(
+        model, 
+        name="automated-test-model",
+        monitoring=True
+    )
+    
+    # Validar despliegue exitoso
+    assert endpoint.is_active()
+    assert endpoint.health_check() == "healthy"
+    
+    # Validar monitoreo automático
+    metrics = endpoint.get_metrics()
+    assert "latency" in metrics
+    assert "throughput" in metrics
+```
+
+#### **Dolor 4: Restricciones del modelo de licenciamiento basado en ingesta**
+**Solución Framework:**
+- **Compute Flexible**: Procesamiento en GCP, no en Splunk (reduce ingesta)
+- **Edge Computing**: Procesamiento local con sincronización selectiva
+- **Batch Optimization**: Extracción optimizada para minimizar costos
+- **Data Sampling**: Estrategias inteligentes de muestreo para desarrollo
+
+**Validación en Testing:**
+```python
+def test_cost_optimization_strategies():
+    # Validar extracción con límites
+    data = kp.data.splunk().extract(
+        query="search index=sensors",
+        limit=1000,  # Limitar ingesta
+        optimization="cost_aware"
+    )
+    assert len(data) <= 1000
+    
+    # Validar procesamiento fuera de Splunk
+    processed = kp.process.feature_engineering(data)
+    # Procesamiento ocurre en GCP, no en Splunk
+    assert processed.compute_location == "gcp"
+```
+
+#### **Dolor 5: Poca interoperabilidad con entornos de desarrollo**
+**Solución Framework:**
+- **Developer Experience First**: Type hints, linting, autocompletado completo
+- **IDE Integration**: Configuraciones para VSCode, PyCharm, Jupyter
+- **SDK Nativo**: Importación directa `import kepler` desde cualquier entorno
+- **Documentation Live**: Documentación interactiva y ejemplos ejecutables
+
+**Validación en Testing:**
+```python
+def test_ide_integration_experience():
+    # Validar importación limpia
+    import kepler as kp
+    
+    # Validar autocompletado (type hints)
+    connection = kp.data.SplunkAdapter("host", "token")
+    assert hasattr(connection, 'extract')  # IDE debe mostrar métodos
+    
+    # Validar documentación accesible
+    help_text = kp.help()
+    assert "Getting Started" in help_text
+    assert "Examples" in help_text
+```
+
+### 🎯 Beneficios Esperados vs Framework Capabilities
+
+#### **"Reducción drástica del tiempo de puesta en producción (de semanas a días)"**
+**Framework Solution:**
+- `kepler infra deploy --template production` → Stack completo en minutos
+- `kepler deploy model --env prod` → Modelo en producción automáticamente
+- Templates pre-configurados para casos de uso comunes
+
+#### **"Reutilización de componentes y automatización de pipelines"**
+**Framework Solution:**
+- Plugin system para reutilización de adaptadores
+- Pipeline templates: `kp.templates.anomaly_detection()`
+- Configuration as code para pipelines repetibles
+
+#### **"Control de costos gracias a despliegues selectivos"**
+**Framework Solution:**
+- Edge deployment para reducir tráfico cloud
+- Batch optimization para minimizar ingesta Splunk
+- Resource scaling automático basado en demanda
+
+#### **"Facilidad de adopción sin curva de aprendizaje compleja"**
+**Framework Solution:**
+- SDK familiar: Similar a sklearn/pandas API
+- Documentación progresiva por nivel de experiencia
+- Templates y examples out-of-the-box
+
+#### **"Independencia tecnológica frente a soluciones propietarias"**
+**Framework Solution:**
+- Open source framework
+- Multi-cloud support (no vendor lock-in)
+- Plugin architecture para extensiones propias
+
+### ✅ Garantías de Testing Orientado a Dolores
+
+#### **Test Categories Mandatorias:**
+
+1. **Framework Compatibility Tests**
+   - Validar integración con sklearn, pytorch, xgboost, etc.
+   - Performance benchmarks vs herramientas nativas
+
+2. **Deployment Automation Tests**
+   - End-to-end desde entrenamiento hasta producción
+   - Tiempo total de deployment < objetivo de negocio
+
+3. **Cost Optimization Tests**
+   - Medición de ingesta Splunk vs procesamiento local
+   - Validación de estrategias de optimización
+
+4. **Developer Experience Tests**
+   - IDE integration tests
+   - Documentation accessibility tests
+   - Learning curve measurement (time to first model)
+
+5. **Business Impact Tests**
+   - Time-to-production measurement
+   - Cost reduction validation
+   - Developer productivity metrics
+
+#### **Success Criteria por Dolor:**
+```yaml
+success_criteria:
+  framework_compatibility:
+    target: "100% support for top 5 ML frameworks"
+    test: "All major frameworks can train and deploy models"
+    
+  deployment_speed:
+    target: "< 1 day from model to production"
+    test: "Automated deployment pipeline completes in < 4 hours"
+    
+  cost_reduction:
+    target: "> 40% reduction in Splunk ingestion costs"
+    test: "Processing moves to GCP, minimal Splunk compute usage"
+    
+  developer_adoption:
+    target: "< 2 hours to first working model"
+    test: "New developer tutorial completion time"
+    
+  vendor_independence:
+    target: "No proprietary dependencies in core"
+    test: "Framework runs on any cloud/on-premises"
+```
+
+---
+
+## 🔒 Seguridad y Compliance ← ACTUALIZADA CON MEJORES PRÁCTICAS
+
+### **Security by Design & Configuration**
+```yaml
+secure_configuration:
+  global_config_policy: "MANDATORIO - Archivo de configuración global protegido"
+  sensitive_data_handling: "NUNCA en código fuente o repos git"
+  environment_separation: "Configuración por ambiente (dev/staging/prod)"
+  credential_rotation: "Procedimientos automáticos de rotación"
+
+configuration_architecture:
+  global_config_file:
+    location: "~/.kepler/config.yml (protected, outside project)"
+    permissions: "600 (solo usuario propietario)"
+    git_exclusion: "MUST be in .gitignore global"
+    environment_override: "Variables de entorno pueden sobrescribir"
+    
+  project_config_file:
+    location: "project/kepler.yml (public settings only)"
+    content: "Solo configuración no sensible (algoritmos, parámetros)"
+    references: "Referencias a global config: ${GLOBAL.splunk.token}"
+    
+  environment_variables:
+    policy: "Backup method, global config preferred"
+    validation: "Framework debe validar presencia de credenciales"
+    security: "Nunca loggar valores de variables sensibles"
+
+credential_types:
+  splunk_credentials:
+    token: "Authentication token para REST API"
+    hec_token: "HTTP Event Collector token"
+    host: "URL del servidor Splunk (puede incluir puerto custom)"
+    ssl_config: "Configuración SSL/TLS incluyendo certificate verification"
+    
+  cloud_credentials:
+    gcp_service_account: "Archivo JSON de service account"
+    gcp_project_id: "ID del proyecto GCP"
+    regions_zones: "Regiones y zonas permitidas"
+    
+  api_keys:
+    external_apis: "Keys para APIs de terceros (MLflow, monitoring)"
+    rotation_schedule: "Schedule automático de rotación"
+
+ssl_tls_configuration:
+  splunk_ssl:
+    verify_ssl: "Configurable por ambiente (dev puede ser false)"
+    custom_ca_certs: "Soporte para certificados corporativos"
+    ssl_fallback: "Graceful handling si SSL falla"
+    
+  data_in_transit:
+    minimum_tls: "TLS 1.2 mínimo, TLS 1.3 recomendado"
+    certificate_validation: "Validación automática de certificados"
+    expired_cert_handling: "Alertas y fallback procedures"
+
+authentication:
+  multi_factor: "mandatory for production access"
+  token_rotation: "every 90 days"
+  role_based_access: "principle of least privilege"
+  connection_pooling: "Secure connection reuse"
+
+data_protection:
+  encryption_at_rest: "AES-256 for all sensitive data"
+  encryption_in_transit: "TLS 1.3 minimum"
+  data_classification: "public, internal, confidential, restricted"
+  pii_handling: "Automatic detection and protection"
+  
+vulnerability_management:
+  dependency_scanning: "automated with every build"
+  penetration_testing: "quarterly by external firm"
+  security_patches: "applied within 48h for critical"
+  ssl_certificate_monitoring: "Alert 30 days before expiration"
+```
+
+### **Resilient Connection Handling**
+```yaml
+connection_resilience:
+  splunk_connectivity:
+    ssl_fallback: "If SSL fails, try non-SSL with warning"
+    hec_fallback: "If HEC unavailable, fallback to REST API"
+    timeout_handling: "Progressive timeouts with retries"
+    network_isolation: "Handle network segmentation gracefully"
+    
+  error_categorization:
+    auth_errors: "Invalid token → clear error message with token validation"
+    network_errors: "Connection refused → check if service is running"
+    ssl_errors: "Certificate issues → provide SSL troubleshooting steps"
+    permission_errors: "Access denied → verify user permissions"
+    
+  graceful_degradation:
+    read_only_mode: "If write operations fail, continue with read-only"
+    cached_responses: "Cache last successful responses for offline mode"
+    manual_fallback: "Provide manual data entry options if automation fails"
+```
+
+### **Compliance Requirements**
+- GDPR compliance for data processing
+- SOC 2 Type II certification path
+- ISO 27001 security controls implementation
+- Audit trail for all data access and model predictions
+- **REGLA DE ORO: Configuración sensible NUNCA en código fuente**
+
+---
+
+## 🚨 Circuit Breakers y Fail-safes ← NUEVA SECCIÓN
+
+### **Automated Stopping Conditions**
+```yaml
+infinite_loop_detection:
+  max_execution_time: "30 minutes for training"
+  resource_usage_limits: "CPU > 90% for > 5 minutes"
+  memory_leak_detection: "memory growth > 100MB/minute"
+
+error_accumulation_limits:
+  consecutive_failures: "stop after 3 consecutive failures"
+  error_rate_threshold: "stop if error rate > 10%"
+  data_quality_checks: "stop if data quality score < 0.8"
+
+resource_protection:
+  cost_limits: "auto-stop if cloud cost > budget * 1.2"
+  quota_monitoring: "alert when approaching quota limits"
+  rate_limiting: "protect external APIs from abuse"
+```
+
+### **Recovery Mechanisms**
+```yaml
+automatic_retry:
+  transient_failures: "exponential backoff with jitter"
+  network_failures: "circuit breaker pattern"
+  resource_exhaustion: "queue and retry with backpressure"
+
+graceful_degradation:
+  partial_failures: "continue with reduced functionality"
+  dependency_unavailable: "fall back to cached responses"
+  performance_degradation: "reduce feature complexity"
+```
+
+---
+
+## 🤖 Ética, responsabilidad y explicabilidad
+
+- Todos los modelos deben tener trazabilidad de datos, versión y parámetros
+- Debe existir módulo explicativo (`kepler explain`) para inferencias realizadas
+- Se debe permitir logging explícito de inferencias productivas
+- Cualquier módulo que involucre toma de decisiones debe poder auditarse
+- El framework no debe facilitar prácticas discriminatorias, sesgadas o no éticas
+- **Fairness testing obligatorio** para modelos que afecten personas
+- **Bias detection automático** en pipelines de entrenamiento
+- **Explainability reports** generados automáticamente
+
+---
+
+## 📚 Documentación mínima esperada por fase
+
+- Arquitectura de referencia
+- API pública (CLI y SDK)
+- Estructura de carpetas y convenciones
+- Flujo típico de trabajo para el científico
+- Ejemplo de uso básico y avanzado
+- Guía de extensibilidad (plugins)
+- Buenas prácticas de versionamiento y testing
+- **Guía de gestión de infraestructura** para ingenieros de datos
+- **Manual de Developer Experience** con configuración de herramientas
+- **Templates de stacks** de desarrollo y producción
+- **Security guidelines y threat model**
+- **Performance benchmarks y SLA**
+- **Disaster recovery procedures**
+- **Troubleshooting guide con casos comunes**
+- **Circuit breaker configuration guide**
+- **Compliance documentation** (GDPR, SOC 2, ISO 27001)
+
+---
+
+## 👥 User Feedback y Early Access Program ← NUEVA SECCIÓN
+
+### 🎯 Filosofía de Desarrollo Orientado al Usuario
+
+El desarrollo de Kepler sigue un enfoque **"Build with Users, not for Users"** donde los analistas y científicos de datos participan activamente en el proceso de desarrollo mediante feedback incremental.
+
+### 📋 Proceso de Feedback Incremental
+
+#### **Grupos de Funcionalidades para Testing**
+```yaml
+milestone_1_basic_functionality:
+  features:
+    - kepler init (project setup)
+    - kepler connect splunk (basic connection)
+    - kepler extract (data extraction)
+    - Basic SDK import (import kepler)
+  
+  user_testing_scope:
+    - Can analysts set up a basic project?
+    - Can they connect to their Splunk instance?
+    - Can they extract sample data?
+    - Is the SDK importable and discoverable?
+  
+  documentation_deliverable:
+    - "Getting Started Guide" (10-15 min tutorial)
+    - "Basic Data Extraction Tutorial" 
+    - "Troubleshooting Common Issues"
+    - API reference for basic functions
+
+milestone_2_model_training:
+  features:
+    - kepler train (sklearn, xgboost basic)
+    - Model serialization and storage
+    - Basic experiment tracking
+  
+  user_testing_scope:
+    - Can analysts train models with their own data?
+    - Is the API intuitive compared to native sklearn?
+    - Are models properly saved and retrievable?
+  
+  documentation_deliverable:
+    - "Your First Model with Kepler" tutorial
+    - "Model Training Best Practices"
+    - Comparison guide "Kepler vs Native Frameworks"
+
+milestone_3_deployment:
+  features:
+    - kepler deploy (basic GCP deployment)
+    - Model serving and inference
+    - Results writing back to Splunk
+  
+  user_testing_scope:
+    - Can analysts deploy models without DevOps knowledge?
+    - Are inference results properly written to Splunk?
+    - Is the deployment process reliable and debuggable?
+```
+
+#### **Early Access Program Structure**
+
+```yaml
+program_phases:
+  alpha_testing:
+    timeline: "After milestone 1 completion"
+    participants: "3-5 lead analysts/data scientists"
+    duration: "2 weeks per milestone"
+    environment: "dedicated sandbox with sample data"
+    
+  beta_testing:
+    timeline: "After milestone 2 completion"
+    participants: "10-15 analysts from different teams"
+    duration: "3 weeks per milestone"
+    environment: "production-like environment with real data"
+    
+  pre_production:
+    timeline: "After milestone 3 completion"
+    participants: "all target users (30+ analysts)"
+    duration: "4 weeks comprehensive testing"
+    environment: "production environment with limited features"
+
+feedback_collection_methods:
+  structured_surveys:
+    frequency: "weekly during testing period"
+    focus_areas: ["usability", "performance", "documentation", "feature_completeness"]
+  
+  direct_interviews:
+    frequency: "bi-weekly 30-min sessions"
+    format: "recorded sessions with task-based scenarios"
+  
+  usage_analytics:
+    tracking: "feature usage, error rates, completion times"
+    analysis: "user behavior patterns and pain points"
+    
+  feedback_sessions:
+    format: "group sessions to discuss findings and prioritize improvements"
+    frequency: "end of each testing period"
+```
+
+### 📚 Documentación Progresiva para Usuarios
+
+#### **Documentation Release Strategy**
+```yaml
+progressive_documentation:
+  level_1_quick_start:
+    release: "with alpha testing"
+    content: 
+      - "5-minute Quick Start"
+      - "Installation Guide"
+      - "Basic Commands Reference"
+    format: "interactive notebooks + video tutorials"
+    
+  level_2_comprehensive:
+    release: "with beta testing"
+    content:
+      - "Complete User Guide"
+      - "Advanced Use Cases"
+      - "Integration Examples"
+      - "Performance Tuning"
+    format: "searchable documentation site + hands-on workshops"
+    
+  level_3_expert:
+    release: "with pre-production"
+    content:
+      - "Expert Tips and Tricks"
+      - "Custom Plugin Development"
+      - "Enterprise Integration Patterns"
+      - "Troubleshooting and FAQ"
+    format: "community-driven wiki + expert sessions"
+
+documentation_validation:
+  task_completion_testing:
+    method: "users complete real tasks using only documentation"
+    success_criteria: ">90% task completion rate without assistance"
+    
+  documentation_feedback:
+    collection: "embedded feedback forms in documentation"
+    response_time: "documentation updates within 48h for critical issues"
+```
+
+### 🔄 Feedback Integration Process
+
+#### **From Feedback to Implementation**
+```yaml
+feedback_processing:
+  collection_consolidation:
+    frequency: "weekly during testing periods"
+    responsible: "product owner + lead developer"
+    output: "prioritized feedback backlog"
+    
+  impact_assessment:
+    criteria:
+      - user_impact: "how many users affected?"
+      - severity: "blocking vs. enhancement"
+      - implementation_effort: "story points estimation"
+      - alignment_with_vision: "fits project goals?"
+    
+  feedback_incorporation:
+    high_priority: "incorporated in current sprint"
+    medium_priority: "incorporated in next sprint"
+    low_priority: "added to product backlog"
+    
+  feedback_loop_closure:
+    communication: "users informed of changes made based on their feedback"
+    validation: "follow-up testing to confirm issue resolution"
+```
+
+#### **User Communication Strategy**
+```yaml
+communication_channels:
+  testing_announcements:
+    method: "email + slack notifications"
+    content: "new features ready for testing + documentation links"
+    timing: "48h before testing period starts"
+    
+  feedback_status_updates:
+    method: "dedicated feedback dashboard"
+    content: "status of reported issues and requested features"
+    frequency: "updated weekly"
+    
+  release_communications:
+    method: "release notes + demo sessions"
+    content: "what's new, what changed, how it affects workflows"
+    timing: "with each milestone release"
+
+user_support_during_testing:
+  dedicated_support_channel:
+    platform: "slack channel or teams"
+    availability: "business hours during testing periods"
+    response_time: "<2 hours for blocking issues"
+    
+  office_hours:
+    format: "weekly 1-hour open sessions"
+    purpose: "users can ask questions and get real-time help"
+    recording: "sessions recorded for async users"
+```
+
+### ✅ Success Metrics for User Feedback
+
+#### **Quantifiable User Success Metrics**
+```yaml
+user_adoption_metrics:
+  engagement_rate: "% of invited users actively testing each milestone"
+  task_completion_rate: "% of users completing defined testing scenarios"
+  return_rate: "% of users participating in multiple testing cycles"
+  
+user_satisfaction_metrics:
+  nps_score: "Net Promoter Score > 7/10"
+  usability_score: "System Usability Scale > 80/100"
+  documentation_score: "Documentation usefulness > 4/5"
+  
+feedback_quality_metrics:
+  actionable_feedback_rate: "% of feedback that leads to concrete improvements"
+  feedback_response_time: "average time from feedback to implementation"
+  issue_resolution_rate: "% of reported issues resolved"
+
+business_impact_metrics:
+  time_to_first_model: "time from installation to first trained model"
+  productivity_improvement: "% reduction in model development time"
+  adoption_rate: "% of target users actively using framework"
+```
+
+### 🎯 User-Centric Definition of Done
+
+Para cada milestone, además de los criterios técnicos, se debe cumplir:
+
+```yaml
+user_acceptance_criteria:
+  usability_validation:
+    - "Users can complete primary workflows without assistance"
+    - "Error messages are clear and actionable"
+    - "Performance meets user expectations (subjective + objective)"
+    
+  documentation_adequacy:
+    - "Users can get started using only provided documentation"
+    - "Advanced use cases are covered with examples"
+    - "Troubleshooting guide addresses common issues"
+    
+  feedback_incorporation:
+    - "High-priority user feedback addressed"
+    - "Users validated that their concerns were resolved"
+    - "No blocking issues preventing daily usage"
+```
