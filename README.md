@@ -25,9 +25,12 @@ Kepler is a pragmatic framework that connects industrial data from Splunk to mac
 
 ### 1. Setup Python Environment
 
-**⚠️ Always use a virtual environment to avoid dependency conflicts:**
+**⚠️ Always use a virtual environment in your WORK directory (not in the cloned repo):**
 
 ```bash
+# Navigate to your work directory
+cd ~/my-projects  # Or wherever you want to work
+
 # Create virtual environment
 python -m venv kepler-env
 
@@ -45,14 +48,22 @@ python --version  # Should be 3.8+
 
 **From GitHub (current):**
 ```bash
-git clone https://github.com/lufermalgo/kepler.git
-cd kepler
-pip install -e .
+# Download and install (in a temporary directory)
+git clone https://github.com/lufermalgo/kepler.git /tmp/kepler-install
+cd /tmp/kepler-install
+pip install .  # Note: no "-e" for end users
+
+# Clean up - you can now delete the cloned repository
+cd ~/my-projects  # Back to your work directory
+rm -rf /tmp/kepler-install  # ✅ Safe to delete after installation
+
+# Verify installation
+kepler --help
 ```
 
-**From PyPI (coming soon):**
+**From PyPI (coming soon - target: Sprint 13):**
 ```bash
-pip install kepler-framework
+pip install kepler-framework  # Much simpler!
 ```
 
 ### 3. Initial Configuration
@@ -101,13 +112,19 @@ kepler predict https://your-api-url.run.app/predict '{"pressure": 2.5, "flow": 1
 
 ### Environment Management
 ```bash
-# Always use virtual environments
+# ✅ DO: Create virtual environment in your WORK directory
+cd ~/my-projects
 python -m venv kepler-env
 source kepler-env/bin/activate  # Linux/macOS
 # kepler-env\Scripts\activate   # Windows
 
-# Keep your environment updated
-pip install -e . --upgrade
+# ✅ DO: Install from GitHub (current method)
+git clone https://github.com/lufermalgo/kepler.git /tmp/kepler-install
+pip install /tmp/kepler-install
+rm -rf /tmp/kepler-install
+
+# ❌ DON'T: Use -e flag unless you're developing Kepler itself
+pip install -e .  # Only for contributors
 ```
 
 ### Security
@@ -320,6 +337,32 @@ kepler train quality_data.csv --target quality_ok --test-size 0.3
 - 📋 **Troubleshooting Guide** - Common issues and solutions
 
 > 💡 **Note:** Comprehensive CLI and SDK documentation will be developed as part of the roadmap in Sprints 13-16, based on user feedback and real-world usage patterns.
+
+## 📦 **PyPI Publishing Roadmap**
+
+### What is PyPI?
+[PyPI (Python Package Index)](https://pypi.org/) is the official repository for Python packages. When a package is published to PyPI, users can install it with simple `pip install package-name` commands.
+
+### Current Status: GitHub Installation
+- **Now:** `git clone` + `pip install .` (temporary solution)
+- **Target:** Sprint 13 - PyPI publishing
+
+### PyPI Publishing Process (Sprint 13)
+```bash
+# What will be done internally:
+1. Create PyPI account
+2. Configure package metadata (already in pyproject.toml)
+3. Build package: python -m build
+4. Upload to PyPI: twine upload dist/*
+5. Test installation: pip install kepler-framework
+```
+
+### Benefits After PyPI Publishing
+- ✅ **Simple installation:** `pip install kepler-framework`
+- ✅ **Automatic updates:** `pip install --upgrade kepler-framework`
+- ✅ **Version management:** `pip install kepler-framework==0.2.0`
+- ✅ **No repository cloning** required
+- ✅ **Global accessibility** for data scientists worldwide
 
 ## 🤝 Contributing
 
