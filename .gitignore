@@ -142,8 +142,8 @@ gcp-credentials.json
 
 # IDE
 .vscode/
-.cursor/
 .idea/
+# NOTE: .cursor/ contains project rules and MUST be in repository
 *.swp
 *.swo
 
