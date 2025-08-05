@@ -27,15 +27,16 @@ Kepler is a pragmatic framework that connects industrial data from Splunk to mac
 
 ## 📚 Documentación
 
-### 📖 **Guías Principales**
-- **[SDK y CLI - Guía Completa](./docs/SDK_CLI_GUIDE.md)** - Documentación educativa detallada para aprender el framework
+### 📖 **Guías Especializadas**
+- **[CLI Guide](./docs/CLI_GUIDE.md)** - Comandos de línea, automatización y DevOps
+- **[SDK Guide](./docs/SDK_GUIDE.md)** - API Python para análisis de datos y notebooks
 - **[Estado de Validación](./docs/VALIDATION_STATUS.md)** - Funcionalidades validadas con datos reales
 - **[Índice Completo de Documentación](./docs/README.md)** - Navegación por toda la documentación
 
 ### 🎯 **Acceso Rápido por Rol**
-- **👨‍💻 Científico de Datos:** [SDK Python](./docs/SDK_CLI_GUIDE.md#sdk---python-api) | [Notebooks](./test-lab/notebooks/)
-- **🔧 DevOps/Ingenieros:** [CLI Commands](./docs/SDK_CLI_GUIDE.md#cli---línea-de-comandos) | [Automatización](./docs/SDK_CLI_GUIDE.md#caso-2-pipeline-de-datos-automatizado)
-- **👔 Managers:** [Funcionalidades actuales](#production-ready-features) | [Roadmap](./docs/SDK_CLI_GUIDE.md#evolución-y-roadmap)
+- **👨‍💻 Científico de Datos:** [SDK Python](./docs/SDK_GUIDE.md#api-de-extracción-de-datos) | [Notebooks](./test-lab/notebooks/)
+- **🔧 DevOps/Ingenieros:** [CLI Commands](./docs/CLI_GUIDE.md#comandos-principales) | [Automatización](./docs/CLI_GUIDE.md#automatización-y-scripts)
+- **👔 Managers:** [Funcionalidades actuales](#production-ready-features) | [Estado validación](./docs/VALIDATION_STATUS.md)
 
 ## 🚀 Quick Start
 
