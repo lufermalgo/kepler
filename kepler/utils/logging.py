@@ -42,18 +42,25 @@ class KeplerLogger:
         file_handler.setFormatter(file_formatter)
         file_handler.setLevel(logging.DEBUG)
         
-        # Console handler with Rich formatting
+        # Console handler with Rich formatting - notebook-friendly mode
+        notebook_mode = os.getenv('KEPLER_NOTEBOOK_MODE', 'true').lower() == 'true'
+        
         console_handler = RichHandler(
             rich_tracebacks=True,
             show_path=False,
-            show_time=True
+            show_time=not notebook_mode  # Simplified for notebooks
         )
         console_formatter = logging.Formatter(
             fmt="%(message)s",
             datefmt="[%X]"
         )
         console_handler.setFormatter(console_formatter)
-        console_handler.setLevel(logging.INFO)
+        
+        # Set console level based on mode
+        if notebook_mode:
+            console_handler.setLevel(logging.WARNING)  # Only warnings and errors in notebooks
+        else:
+            console_handler.setLevel(logging.INFO)  # Normal verbosity in CLI
         
         # Configure root kepler logger
         root_logger = logging.getLogger("kepler")
@@ -63,6 +70,11 @@ class KeplerLogger:
         
         # Prevent duplicate logs
         root_logger.propagate = False
+        
+        # Suppress SSL warnings in notebook mode (for cleaner development experience)
+        if notebook_mode:
+            import urllib3
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
         cls._configured = True
     

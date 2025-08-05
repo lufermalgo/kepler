@@ -11,10 +11,15 @@ from rich.console import Console
 from rich import print as rprint
 
 from kepler.core.project import KeplerProject
-from kepler.core.config import print_prerequisites_report
+from kepler.core.config import (
+    print_prerequisites_report, 
+    detect_gcp_credentials, 
+    print_gcp_detection_report
+)
 from kepler.core.global_config import get_global_config_manager, get_global_config
 from kepler.utils.logging import get_logger, set_verbose
 from kepler.utils.exceptions import setup_exception_handler, handle_exception
+from kepler.utils.synthetic_data import IndustrialDataGenerator, create_lab_dataset
 
 # Initialize Typer app
 app = typer.Typer(
@@ -227,13 +232,231 @@ def config(
 @app.command()
 def validate() -> None:
     """
-    Validate Kepler prerequisites and configuration.
+    Validate Kepler prerequisites, configuration, and Splunk connectivity.
     
-    Checks Python version, required packages, configuration validity,
-    and connectivity to external services.
+    Performs comprehensive validation including:
+    - Python version and required packages
+    - GCP credentials detection
+    - Splunk connectivity and authentication
+    - Project indexes validation and auto-creation
     """
-    rprint("\n[bold blue]🔍 Validating Kepler Prerequisites...[/bold blue]\n")
+    from rich.panel import Panel
+    from rich.table import Table
+    from kepler.connectors.splunk import SplunkConnector
+    from kepler.utils.exceptions import SplunkConnectionError
+    import os
+    from pathlib import Path
+    
+    logger = get_logger()
+    overall_success = True
+    
+    # ====================================
+    # STEP 1: Basic Prerequisites
+    # ====================================
+    rprint("\n[bold blue]🔍 Step 1: Validating Basic Prerequisites...[/bold blue]\n")
     print_prerequisites_report()
+    
+    # ====================================
+    # STEP 2: GCP Credentials
+    # ====================================
+    rprint("\n[bold blue]🔍 Step 2: Detecting GCP Credentials...[/bold blue]\n")
+    gcp_creds = detect_gcp_credentials()
+    print_gcp_detection_report(gcp_creds)
+    
+    # ====================================
+    # STEP 3: Project Configuration
+    # ====================================
+    rprint("\n[bold blue]🔍 Step 3: Validating Project Configuration...[/bold blue]\n")
+    
+    # Check if we're in a Kepler project
+    if not Path("kepler.yml").exists():
+        rprint("❌ [red]Not in a Kepler project directory[/red]")
+        rprint("💡 Run 'kepler init <project-name>' to create a new project")
+        overall_success = False
+        rprint("\n[bold red]⚠️  Validation failed - cannot proceed without project configuration[/bold red]")
+        raise typer.Exit(1)
+    
+    try:
+        project = KeplerProject()
+        config = project.get_config()
+        rprint("✅ [green]Project configuration loaded successfully[/green]")
+        
+        # Show project info
+        rprint(f"📁 Project: [cyan]{config.project_name}[/cyan]")
+        rprint(f"📂 Splunk Host: [cyan]{config.splunk.host}[/cyan]")
+        rprint(f"📊 Indexes: events=[cyan]{config.splunk.events_index}[/cyan], metrics=[cyan]{config.splunk.metrics_index}[/cyan]")
+        
+    except Exception as e:
+        rprint(f"❌ [red]Project configuration error: {e}[/red]")
+        overall_success = False
+        rprint("\n[bold red]⚠️  Validation failed - fix configuration and try again[/bold red]")
+        raise typer.Exit(1)
+    
+    # ====================================
+    # STEP 4: Splunk Connectivity
+    # ====================================
+    rprint("\n[bold blue]🔍 Step 4: Testing Splunk Connectivity...[/bold blue]\n")
+    
+    # Load environment variables
+    env_path = Path(".env")
+    if env_path.exists():
+        from dotenv import load_dotenv
+        load_dotenv()
+        rprint("✅ [green]Environment variables loaded from .env[/green]")
+    else:
+        rprint("⚠️  [yellow]No .env file found - using global configuration only[/yellow]")
+    
+    # Test connectivity
+    try:
+        splunk = SplunkConnector(
+            host=config.splunk.host,
+            token=os.getenv('SPLUNK_TOKEN') or config.splunk.token,
+            verify_ssl=config.splunk.verify_ssl,
+            timeout=config.splunk.timeout
+        )
+        
+        # Perform health check
+        rprint("🔌 Testing Splunk REST API connectivity...")
+        health = splunk.health_check()
+        
+        if health.get('connected', False):
+            rprint("✅ [green]Splunk connectivity successful![/green]")
+            rprint(f"   📊 Server: [cyan]{health.get('server_name', 'Unknown')}[/cyan]")
+            rprint(f"   🏷️  Version: [cyan]{health.get('splunk_version', 'Unknown')}[/cyan]")
+            rprint(f"   ⚡ Response Time: [cyan]{health.get('response_time_ms', 0):.1f}ms[/cyan]")
+        else:
+            rprint(f"❌ [red]Splunk connectivity failed: {health.get('error', 'Unknown error')}[/red]")
+            overall_success = False
+            
+        # Test authentication
+        if health.get('connected', False):
+            rprint("🔐 Testing Splunk authentication...")
+            try:
+                auth_valid = splunk.test_authentication()
+                if auth_valid:
+                    rprint("✅ [green]Splunk authentication successful![/green]")
+                else:
+                    rprint("❌ [red]Splunk authentication failed[/red]")
+                    overall_success = False
+            except Exception as e:
+                rprint(f"❌ [red]Authentication test failed: {e}[/red]")
+                overall_success = False
+                
+    except Exception as e:
+        rprint(f"❌ [red]Splunk connection error: {e}[/red]")
+        overall_success = False
+        splunk = None
+    
+    # ====================================
+    # STEP 5: Index Validation & Creation
+    # ====================================
+    if splunk and overall_success:
+        rprint("\n[bold blue]🔍 Step 5: Validating Project Indexes...[/bold blue]\n")
+        
+        try:
+            # Validate all project indexes
+            project_config = {
+                'splunk': {
+                    'events_index': config.splunk.events_index,
+                    'metrics_index': config.splunk.metrics_index,
+                    'default_index': config.splunk.default_index
+                }
+            }
+            
+            validation_results = splunk.validate_project_indexes(project_config)
+            
+            # Create detailed results table
+            table = Table(title="📊 Index Validation Results", show_header=True, header_style="bold blue")
+            table.add_column("Index", style="cyan", no_wrap=True)
+            table.add_column("Type", style="dim", no_wrap=True) 
+            table.add_column("Status", no_wrap=True)
+            table.add_column("Events", justify="right")
+            table.add_column("Size", justify="right")
+            table.add_column("Details")
+            
+            for index_name, details in validation_results['validation_details'].items():
+                if details['exists'] and details['accessible']:
+                    status = "✅ [green]Ready[/green]"
+                    events = str(details['event_count']) if details['event_count'] > 0 else "[dim]No data[/dim]"
+                    size = f"{details['size_mb']:.1f} MB" if details['size_mb'] > 0 else "[dim]Empty[/dim]"
+                    detail_info = "✅ Accessible" if details['has_data'] else "⚠️ No data yet"
+                elif index_name in validation_results['indexes_created']:
+                    status = "🆕 [green]Created[/green]"
+                    events = "[dim]0[/dim]"
+                    size = "[dim]0 MB[/dim]"
+                    detail_info = "🎉 Auto-created"
+                else:
+                    status = "❌ [red]Missing[/red]"
+                    events = "[dim]N/A[/dim]"
+                    size = "[dim]N/A[/dim]"
+                    detail_info = f"Error: {details.get('error', 'Unknown')}"
+                
+                # Determine index type
+                index_type = "📊 Metrics" if "metric" in index_name else "📝 Events"
+                
+                table.add_row(index_name, index_type, status, events, size, detail_info)
+            
+            rprint(table)
+            
+            # Show overall status
+            status_color = "green" if validation_results['overall_status'] == 'success' else "yellow" if validation_results['overall_status'] == 'partial' else "red"
+            status_icon = "✅" if validation_results['overall_status'] == 'success' else "⚠️" if validation_results['overall_status'] == 'partial' else "❌"
+            
+            rprint(f"\n{status_icon} [bold {status_color}]Index Validation: {validation_results['overall_status'].upper()}[/bold {status_color}]")
+            rprint(f"   📊 {validation_results['indexes_valid']}/{validation_results['indexes_checked']} indexes ready")
+            
+            if validation_results['indexes_created']:
+                rprint(f"   🆕 Auto-created: {', '.join(validation_results['indexes_created'])}")
+            
+            # Show recommendations
+            if validation_results['recommendations']:
+                rprint("\n[bold blue]💡 Recommendations:[/bold blue]")
+                for rec in validation_results['recommendations']:
+                    rprint(f"   • {rec}")
+            
+            if validation_results['overall_status'] != 'success':
+                overall_success = False
+            
+        except Exception as e:
+            rprint(f"❌ [red]Index validation failed: {e}[/red]")
+            overall_success = False
+    
+    # ====================================
+    # FINAL SUMMARY
+    # ====================================
+    rprint("\n" + "="*60)
+    
+    if overall_success:
+        rprint(Panel(
+            "🎉 [bold green]All validations passed![/bold green]\n\n"
+            "✅ Prerequisites met\n"
+            "✅ GCP credentials detected\n" 
+            "✅ Splunk connectivity confirmed\n"
+            "✅ Project indexes ready\n\n"
+            "🚀 [bold]Ready to use Kepler![/bold]\n\n"
+            "💡 Next steps:\n"
+            "   • Run 'kepler lab generate' to create test data\n"
+            "   • Run 'kepler extract \"index=main | head 10\"' to test data extraction\n"
+            "   • Run 'kepler train data.csv' to train your first model",
+            title="🎯 Validation Summary",
+            border_style="green"
+        ))
+    else:
+        rprint(Panel(
+            "⚠️  [bold yellow]Some validations failed[/bold yellow]\n\n"
+            "Please review the errors above and:\n"
+            "   • Fix configuration issues\n"
+            "   • Check network connectivity\n"
+            "   • Verify credentials\n"
+            "   • Run 'kepler validate' again\n\n"
+            "💡 For help:\n"
+            "   • Check README.md for setup instructions\n"
+            "   • Verify .env file has correct tokens\n"
+            "   • Ensure Splunk is running and accessible",
+            title="⚠️  Validation Results", 
+            border_style="yellow"
+        ))
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -614,6 +837,314 @@ def main(
         logger.debug("Verbose logging enabled")
     
     logger.info("Kepler CLI initialized")
+
+
+@app.command()
+def lab(
+    action: str = typer.Argument(..., help="Action to perform: generate, load, validate"),
+    duration_hours: int = typer.Option(24, "--duration", "-d", help="Duration in hours for data generation"),
+    sensors: int = typer.Option(10, "--sensors", "-s", help="Number of sensors to simulate"),
+    upload_to_splunk: bool = typer.Option(False, "--upload", help="Upload generated data to Splunk"),
+    events_index: str = typer.Option("kepler_lab", "--events-index", help="Splunk index for events"),
+    metrics_index: str = typer.Option("kepler_metrics", "--metrics-index", help="Splunk index for metrics")
+) -> None:
+    """
+    Laboratory commands for testing Kepler with synthetic data.
+    
+    Actions:
+    - generate: Generate synthetic industrial data
+    - load: Load data to Splunk (requires generate first)
+    - validate: Validate Splunk connection and indices
+    - full: Complete lab setup (generate + load + validate)
+    """
+    logger = get_logger()
+    
+    if action == "generate":
+        _lab_generate_data(duration_hours, sensors)
+    elif action == "load":
+        _lab_load_data(events_index, metrics_index)
+    elif action == "validate":
+        _lab_validate_splunk(events_index, metrics_index)
+    elif action == "full":
+        _lab_full_setup(duration_hours, sensors, events_index, metrics_index)
+    else:
+        rprint(f"❌ Unknown action: {action}")
+        rprint("💡 Valid actions: generate, load, validate, full")
+        raise typer.Exit(1)
+
+
+def _lab_generate_data(duration_hours: int, sensors: int) -> None:
+    """Genera datos sintéticos para el laboratorio."""
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    
+    rprint(f"\n[bold blue]🧪 Generating synthetic industrial data...[/bold blue]")
+    rprint(f"📊 Duration: {duration_hours} hours")
+    rprint(f"🔧 Sensors: {sensors}")
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console
+    ) as progress:
+        # Generar datos de sensores
+        task1 = progress.add_task("Generating sensor data...", total=None)
+        generator = IndustrialDataGenerator()
+        sensor_data = generator.generate_sensor_metrics(
+            duration_hours=duration_hours, 
+            num_sensors=sensors
+        )
+        progress.remove_task(task1)
+        
+        # Generar datos de producción
+        task2 = progress.add_task("Generating production data...", total=None)
+        production_data = generator.generate_production_metrics(duration_hours=duration_hours)
+        progress.remove_task(task2)
+        
+        # Generar datos de calidad
+        task3 = progress.add_task("Generating quality data...", total=None)
+        quality_data = generator.generate_quality_metrics(duration_hours=duration_hours)
+        progress.remove_task(task3)
+        
+        # Guardar datos
+        task4 = progress.add_task("Saving data files...", total=None)
+        
+        # Crear directorio lab si no existe
+        lab_dir = Path("lab_data")
+        lab_dir.mkdir(exist_ok=True)
+        
+        # Guardar CSVs
+        sensor_data.to_csv(lab_dir / "sensor_data.csv", index=False)
+        production_data.to_csv(lab_dir / "production_data.csv", index=False)
+        quality_data.to_csv(lab_dir / "quality_data.csv", index=False)
+        
+        # Guardar eventos para Splunk
+        events = generator.export_to_splunk_events(sensor_data)
+        metrics = generator.export_to_splunk_metrics(sensor_data)
+        
+        import json
+        with open(lab_dir / "splunk_events.json", 'w') as f:
+            for event in events:
+                f.write(json.dumps(event) + '\n')
+        
+        with open(lab_dir / "splunk_metrics.json", 'w') as f:
+            for metric in metrics:
+                f.write(json.dumps(metric) + '\n')
+        
+        progress.remove_task(task4)
+    
+    rprint(f"\n✅ [bold green]Data generation completed![/bold green]")
+    rprint(f"📁 Files saved in: {lab_dir.absolute()}")
+    rprint(f"📊 Generated {len(sensor_data)} sensor readings")
+    rprint(f"🏭 Generated {len(production_data)} production records")
+    rprint(f"🔍 Generated {len(quality_data)} quality measurements")
+    rprint(f"📦 Prepared {len(events)} events and {len(metrics)} metrics for Splunk")
+
+
+def _lab_load_data(events_index: str, metrics_index: str) -> None:
+    """Carga datos sintéticos a Splunk."""
+    from kepler.connectors.hec import HecWriter
+    from kepler.core.project import KeplerProject
+    from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+    import json
+    
+    rprint(f"\n[bold blue]📤 Loading synthetic data to Splunk...[/bold blue]")
+    
+    # Verificar que existen los archivos de datos
+    lab_dir = Path("lab_data")
+    events_file = lab_dir / "splunk_events.json"
+    metrics_file = lab_dir / "splunk_metrics.json"
+    
+    if not events_file.exists() or not metrics_file.exists():
+        rprint("❌ [bold red]Data files not found![/bold red]")
+        rprint("💡 Run `kepler lab generate` first")
+        raise typer.Exit(1)
+    
+    try:
+        # Cargar configuración del proyecto
+        project = KeplerProject()
+        config = project.get_config()
+        
+        # Verificar configuración HEC
+        if not config.splunk.hec_token:
+            rprint("❌ [bold red]HEC token not configured![/bold red]")
+            rprint("💡 Configure HEC token in kepler.yml or global config")
+            raise typer.Exit(1)
+        
+        # Inicializar HEC Writer
+        hec_writer = HecWriter(
+            hec_url=config.splunk.hec_url or f"{config.splunk.host}:8088/services/collector",
+            token=config.splunk.hec_token
+        )
+        
+        # Verificar conectividad
+        rprint("🔍 Testing HEC connectivity...")
+        if not hec_writer.health_check():
+            rprint("❌ [bold red]HEC health check failed![/bold red]")
+            rprint("💡 Check HEC configuration and network connectivity")
+            raise typer.Exit(1)
+        
+        rprint("✅ HEC connectivity confirmed")
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console
+        ) as progress:
+            # Cargar eventos
+            task1 = progress.add_task("Loading events...", total=None)
+            
+            with open(events_file, 'r') as f:
+                events = [json.loads(line) for line in f]
+            
+            # Enviar eventos en lotes
+            batch_size = 100
+            for i in range(0, len(events), batch_size):
+                batch = events[i:i + batch_size]
+                batch_events = [event['event'] for event in batch]
+                
+                hec_writer.write_events_batch(
+                    events=batch_events,
+                    index=events_index,
+                    source="kepler_lab",
+                    sourcetype="industrial_metrics"
+                )
+                
+                progress.update(task1, advance=len(batch))
+            
+            progress.remove_task(task1)
+            
+            # Cargar métricas
+            task2 = progress.add_task("Loading metrics...", total=None)
+            
+            with open(metrics_file, 'r') as f:
+                metrics = [json.loads(line) for line in f]
+            
+            # Enviar métricas en lotes
+            for i in range(0, len(metrics), batch_size):
+                batch = metrics[i:i + batch_size]
+                
+                for metric in batch:
+                    hec_writer.write_metric(
+                        metric_name="industrial_metrics",
+                        value=1,  # Dummy value, real data in fields
+                        timestamp=metric['time'],
+                        fields=metric['fields'],
+                        index=metrics_index
+                    )
+                
+                progress.update(task2, advance=len(batch))
+            
+            progress.remove_task(task2)
+        
+        rprint(f"\n✅ [bold green]Data loading completed![/bold green]")
+        rprint(f"📊 Loaded {len(events)} events to index: {events_index}")
+        rprint(f"📈 Loaded {len(metrics)} metrics to index: {metrics_index}")
+        rprint("\n💡 Wait 1-2 minutes for data to be searchable in Splunk")
+        
+    except Exception as e:
+        rprint(f"❌ [bold red]Error loading data: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+def _lab_validate_splunk(events_index: str, metrics_index: str) -> None:
+    """Valida la configuración de Splunk y la presencia de datos."""
+    from kepler.connectors.splunk import SplunkConnector
+    from kepler.core.project import KeplerProject
+    from rich.table import Table
+    
+    rprint(f"\n[bold blue]🔍 Validating Splunk lab setup...[/bold blue]")
+    
+    try:
+        # Cargar configuración
+        project = KeplerProject()
+        config = project.get_config()
+        
+        # Conectar a Splunk
+        splunk = SplunkConnector(
+            host=config.splunk.host,
+            token=config.splunk.token,
+            verify_ssl=config.splunk.verify_ssl
+        )
+        
+        # Tabla de resultados
+        table = Table(title="Splunk Lab Validation")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="magenta")
+        table.add_column("Details", style="white")
+        
+        # 1. Conectividad
+        try:
+            is_healthy = splunk.health_check()
+            status = "✅ PASS" if is_healthy else "❌ FAIL"
+            table.add_row("Splunk Connectivity", status, "REST API connection")
+        except Exception as e:
+            table.add_row("Splunk Connectivity", "❌ FAIL", str(e))
+        
+        # 2. Verificar índices
+        indices_to_check = [events_index, metrics_index]
+        
+        for index in indices_to_check:
+            try:
+                # Buscar datos en el índice
+                query = f'search index={index} | head 1'
+                results = splunk.search(query)
+                
+                if results and len(results) > 0:
+                    table.add_row(f"Index: {index}", "✅ HAS DATA", f"Found data in index")
+                else:
+                    table.add_row(f"Index: {index}", "⚠️ EMPTY", f"Index exists but no data")
+            except Exception as e:
+                table.add_row(f"Index: {index}", "❌ ERROR", str(e))
+        
+        # 3. Contar eventos
+        try:
+            count_query = f'search index={events_index} | stats count'
+            count_results = splunk.search(count_query)
+            event_count = count_results[0]['count'] if count_results else 0
+            table.add_row("Event Count", "ℹ️ INFO", f"{event_count} events in {events_index}")
+        except Exception as e:
+            table.add_row("Event Count", "❌ ERROR", str(e))
+        
+        # 4. Verificar métricas
+        try:
+            metrics_query = f'| mstats count WHERE index={metrics_index}'
+            metrics_results = splunk.search_metrics(metrics_query)
+            metrics_count = len(metrics_results) if metrics_results else 0
+            table.add_row("Metrics Count", "ℹ️ INFO", f"{metrics_count} metric points in {metrics_index}")
+        except Exception as e:
+            table.add_row("Metrics Count", "❌ ERROR", str(e))
+        
+        console.print(table)
+        
+        # Sugerencias
+        rprint("\n🔧 [bold blue]Next Steps:[/bold blue]")
+        rprint("1. Run example queries:")
+        rprint(f"   • `kepler extract 'search index={events_index} | head 10'`")
+        rprint(f"   • `kepler extract '| mstats avg(_value) WHERE index={metrics_index} span=1h'`")
+        rprint("2. Create Jupyter notebook with SDK examples")
+        rprint("3. Train models with: `kepler train lab_data/sensor_data.csv`")
+        
+    except Exception as e:
+        rprint(f"❌ [bold red]Validation failed: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+def _lab_full_setup(duration_hours: int, sensors: int, events_index: str, metrics_index: str) -> None:
+    """Ejecuta el setup completo del laboratorio."""
+    rprint("\n[bold blue]🧪 Starting Full Lab Setup...[/bold blue]")
+    
+    # Paso 1: Generar datos
+    _lab_generate_data(duration_hours, sensors)
+    
+    # Paso 2: Cargar a Splunk
+    _lab_load_data(events_index, metrics_index)
+    
+    # Paso 3: Validar
+    _lab_validate_splunk(events_index, metrics_index)
+    
+    rprint("\n🎉 [bold green]Full lab setup completed successfully![/bold green]")
+    rprint("🚀 Your Kepler laboratory is ready for testing!")
 
 
 # Entry point for the CLI

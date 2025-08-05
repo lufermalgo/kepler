@@ -398,10 +398,16 @@ class HecWriter:
             batch: Batch of events or metrics
             endpoint_type: 'event' or 'metric'
         """
-        if endpoint_type == 'metric':
-            url = f"{self.hec_url}/metrics"
+        # Both events and metrics use the same endpoint: /services/collector
+        # The difference is in the data format (event field)
+        # Según documentación oficial: docs.splunk.com
+        if self.hec_url.endswith('/metrics') or self.hec_url.endswith('/event'):
+            # Si la URL termina con un endpoint específico, usar base
+            base_url = self.hec_url.rstrip('/metrics').rstrip('/event')
+            url = base_url
         else:
-            url = f"{self.hec_url}/event"
+            # Si es la URL base, usar tal como está
+            url = self.hec_url
         
         # Convert batch to newline-delimited JSON
         payload = '\n'.join(json.dumps(item) for item in batch)

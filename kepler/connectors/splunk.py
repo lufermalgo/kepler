@@ -128,7 +128,7 @@ class SplunkConnector:
         try:
             # Try to get server info via REST API first (faster)
             response = self.session.get(
-                f"{self.host}/services/server/info",
+                f"{self.host}/services/server/info?output_mode=json",
                 timeout=self.timeout
             )
             
@@ -316,7 +316,7 @@ class SplunkConnector:
         
         try:
             response = self.session.get(
-                f"{self.host}/services/authentication/current-context",
+                f"{self.host}/services/authentication/current-context?output_mode=json",
                 timeout=self.timeout
             )
             
@@ -401,6 +401,22 @@ class SplunkConnector:
             
             # Parse results
             result_data = response.json()
+            
+            # Check for Splunk-specific errors in messages
+            if 'messages' in result_data and result_data['messages']:
+                error_messages = []
+                for msg in result_data['messages']:
+                    if msg.get('type') in ['FATAL', 'ERROR']:
+                        error_messages.append(msg.get('text', 'Unknown error'))
+                
+                if error_messages:
+                    error_text = '; '.join(error_messages)
+                    raise DataExtractionError(
+                        f"Splunk query error: {error_text}",
+                        query=query,
+                        suggestion="Check the SPL syntax according to Splunk documentation"
+                    )
+            
             results_list = result_data.get('results', [])
             
             self.logger.info(f"Search completed successfully - {len(results_list)} results")
@@ -606,6 +622,328 @@ class SplunkConnector:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit"""
         self.close()
+
+    
+    # =====================================
+    # INDEX MANAGEMENT AND VALIDATION
+    # =====================================
+    
+    def list_indexes(self) -> List[Dict[str, Any]]:
+        """
+        List all available indexes in Splunk
+        
+        Returns:
+            List of index information dictionaries
+        """
+        self.logger.info("Retrieving list of Splunk indexes")
+        
+        try:
+            response = self.session.get(
+                f"{self.host}/services/data/indexes?output_mode=json",
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                indexes = []
+                
+                for entry in data.get('entry', []):
+                    content = entry.get('content', {})
+                    indexes.append({
+                        'name': entry.get('name'),
+                        'datatype': content.get('datatype', 'event'),
+                        'maxDataSize': content.get('maxDataSize'),
+                        'maxTime': content.get('maxTime'),
+                        'minTime': content.get('minTime'),
+                        'currentDBSizeMB': content.get('currentDBSizeMB'),
+                        'totalEventCount': content.get('totalEventCount'),
+                        'disabled': content.get('disabled', False)
+                    })
+                
+                self.logger.info(f"Found {len(indexes)} indexes")
+                return indexes
+            else:
+                raise SplunkConnectionError(
+                    f"Failed to retrieve indexes: HTTP {response.status_code}",
+                    splunk_host=self.host
+                )
+                
+        except requests.exceptions.RequestException as e:
+            raise SplunkConnectionError(
+                f"Error retrieving indexes: {e}",
+                splunk_host=self.host
+            )
+    
+    def index_exists(self, index_name: str) -> bool:
+        """
+        Check if an index exists in Splunk
+        
+        Args:
+            index_name: Name of the index to check
+            
+        Returns:
+            True if index exists, False otherwise
+        """
+        self.logger.info(f"Checking if index '{index_name}' exists")
+        
+        try:
+            response = self.session.get(
+                f"{self.host}/services/data/indexes/{index_name}?output_mode=json",
+                timeout=self.timeout
+            )
+            
+            exists = response.status_code == 200
+            self.logger.info(f"Index '{index_name}': {'exists' if exists else 'does not exist'}")
+            return exists
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error checking index existence: {e}")
+            return False
+    
+    def validate_index_access(self, index_name: str) -> Dict[str, Any]:
+        """
+        Validate if an index is accessible and queryable
+        
+        Args:
+            index_name: Name of the index to validate
+            
+        Returns:
+            Dictionary with validation results
+        """
+        self.logger.info(f"Validating access to index '{index_name}'")
+        
+        validation = {
+            'exists': False,
+            'accessible': False,
+            'has_data': False,
+            'event_count': 0,
+            'size_mb': 0,
+            'data_range': None,
+            'error': None
+        }
+        
+        try:
+            # Check if index exists and get details
+            response = self.session.get(
+                f"{self.host}/services/data/indexes/{index_name}?output_mode=json",
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                validation['exists'] = True
+                data = response.json()
+                
+                if 'entry' in data and len(data['entry']) > 0:
+                    content = data['entry'][0].get('content', {})
+                    
+                    validation['accessible'] = True
+                    validation['event_count'] = int(content.get('totalEventCount', 0))
+                    validation['size_mb'] = float(content.get('currentDBSizeMB', 0))
+                    validation['has_data'] = validation['event_count'] > 0
+                    
+                    # Get data time range if available
+                    min_time = content.get('minTime')
+                    max_time = content.get('maxTime')
+                    if min_time and max_time:
+                        validation['data_range'] = {
+                            'earliest': min_time,
+                            'latest': max_time
+                        }
+                        
+                    self.logger.info(f"Index '{index_name}' validation: "
+                                   f"{validation['event_count']} events, "
+                                   f"{validation['size_mb']:.2f} MB")
+            else:
+                validation['error'] = f"Index not accessible: HTTP {response.status_code}"
+                self.logger.warning(validation['error'])
+                
+        except requests.exceptions.RequestException as e:
+            validation['error'] = f"Error validating index: {e}"
+            self.logger.error(validation['error'])
+            
+        return validation
+    
+    def check_index_data(self, index_name: str, sample_query: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Check if an index has queryable data
+        
+        Args:
+            index_name: Name of the index to check
+            sample_query: Optional SPL query to test (defaults to simple search)
+            
+        Returns:
+            Dictionary with data check results
+        """
+        self.logger.info(f"Checking data in index '{index_name}'")
+        
+        if not sample_query:
+            sample_query = f"search index={index_name} | head 5"
+            
+        try:
+            results = self.search(
+                query=sample_query,
+                earliest_time="-24h",
+                max_results=5
+            )
+            
+            data_check = {
+                'has_data': len(results) > 0,
+                'sample_count': len(results),
+                'queryable': True,
+                'sample_events': results[:3] if results else [],
+                'error': None
+            }
+            
+            self.logger.info(f"Index '{index_name}' data check: "
+                           f"{'✅ Has data' if data_check['has_data'] else '❌ No data'} "
+                           f"({data_check['sample_count']} sample events)")
+            
+            return data_check
+            
+        except Exception as e:
+            return {
+                'has_data': False,
+                'sample_count': 0,
+                'queryable': False,
+                'sample_events': [],
+                'error': str(e)
+            }
+    
+    def create_index(self, index_name: str, index_type: str = "event", **kwargs) -> bool:
+        """
+        Create a new index in Splunk
+        
+        Args:
+            index_name: Name of the index to create
+            index_type: Type of index ('event' or 'metric')
+            **kwargs: Additional index configuration parameters
+            
+        Returns:
+            True if index was created successfully, False otherwise
+        """
+        self.logger.info(f"Creating {index_type} index '{index_name}'")
+        
+        # Prepare index configuration
+        index_config = {
+            'name': index_name,
+            'datatype': index_type
+        }
+        
+        # Add common configuration
+        if index_type == "metric":
+            index_config.update({
+                'maxDataSize': kwargs.get('maxDataSize', 'auto'),
+                'maxHotBuckets': kwargs.get('maxHotBuckets', 3),
+                'maxWarmDBCount': kwargs.get('maxWarmDBCount', 300)
+            })
+        else:  # event index
+            index_config.update({
+                'maxDataSize': kwargs.get('maxDataSize', 'auto'),
+                'maxHotBuckets': kwargs.get('maxHotBuckets', 10),
+                'maxWarmDBCount': kwargs.get('maxWarmDBCount', 300)
+            })
+        
+        # Add any additional configuration
+        index_config.update(kwargs)
+        
+        try:
+            response = self.session.post(
+                f"{self.host}/services/data/indexes?output_mode=json",
+                data=index_config,
+                timeout=self.timeout
+            )
+            
+            if response.status_code in [200, 201]:
+                self.logger.info(f"✅ Successfully created {index_type} index '{index_name}'")
+                return True
+            else:
+                error_msg = f"Failed to create index: HTTP {response.status_code}"
+                if response.text:
+                    error_msg += f" - {response.text}"
+                self.logger.error(error_msg)
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error creating index '{index_name}': {e}")
+            return False
+    
+    def validate_project_indexes(self, project_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate all indexes required by a project configuration
+        
+        Args:
+            project_config: Project configuration with splunk.indexes settings
+            
+        Returns:
+            Dictionary with comprehensive validation results
+        """
+        self.logger.info("Validating project indexes configuration")
+        
+        splunk_config = project_config.get('splunk', {})
+        
+        # Get required indexes from configuration
+        required_indexes = {
+            'events_index': splunk_config.get('events_index', 'kepler_lab'),
+            'metrics_index': splunk_config.get('metrics_index', 'kepler_metrics'),
+            'default_index': splunk_config.get('default_index', 'main')
+        }
+        
+        validation_results = {
+            'overall_status': 'unknown',
+            'indexes_checked': len(required_indexes),
+            'indexes_valid': 0,
+            'indexes_missing': [],
+            'indexes_created': [],
+            'validation_details': {},
+            'recommendations': []
+        }
+        
+        for index_type, index_name in required_indexes.items():
+            self.logger.info(f"Validating {index_type}: '{index_name}'")
+            
+            # Validate index
+            index_validation = self.validate_index_access(index_name)
+            validation_results['validation_details'][index_name] = index_validation
+            
+            if index_validation['exists'] and index_validation['accessible']:
+                validation_results['indexes_valid'] += 1
+                
+                # Check for data and provide recommendations
+                if not index_validation['has_data']:
+                    validation_results['recommendations'].append(
+                        f"Index '{index_name}' exists but has no data - consider running 'kepler lab generate' to create test data"
+                    )
+            else:
+                validation_results['indexes_missing'].append(index_name)
+                
+                # Attempt to create missing index
+                if index_validation['error'] and "not accessible" in index_validation['error']:
+                    suggested_type = "metric" if "metric" in index_type else "event"
+                    
+                    self.logger.info(f"Attempting to create missing {suggested_type} index '{index_name}'")
+                    if self.create_index(index_name, suggested_type):
+                        validation_results['indexes_created'].append(index_name)
+                        validation_results['indexes_valid'] += 1
+                        validation_results['recommendations'].append(
+                            f"✅ Created {suggested_type} index '{index_name}' - ready for data ingestion"
+                        )
+                    else:
+                        validation_results['recommendations'].append(
+                            f"❌ Failed to create index '{index_name}' - manual creation required"
+                        )
+        
+        # Determine overall status
+        if validation_results['indexes_valid'] == validation_results['indexes_checked']:
+            validation_results['overall_status'] = 'success'
+        elif validation_results['indexes_valid'] > 0:
+            validation_results['overall_status'] = 'partial'
+        else:
+            validation_results['overall_status'] = 'failed'
+            
+        self.logger.info(f"Project index validation completed: "
+                       f"{validation_results['indexes_valid']}/{validation_results['indexes_checked']} indexes valid")
+        
+        return validation_results
 
 
 def create_splunk_connector(host: str, token: str, **kwargs) -> SplunkConnector:

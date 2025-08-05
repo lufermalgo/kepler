@@ -5,11 +5,13 @@ Handles kepler.yml configuration file and environment variables.
 """
 
 import os
+import json
 from pathlib import Path
 from typing import Optional, Dict, Any
 import yaml
 from pydantic import BaseModel, Field, validator
 from dotenv import load_dotenv
+import subprocess
 
 
 class SplunkConfig(BaseModel):
@@ -267,3 +269,239 @@ def print_prerequisites_report():
         console.print("\n✅ All prerequisites met! You're ready to use Kepler.", style="bold green")
     else:
         console.print(f"\n⚠️  {total_checks - passed_checks} prerequisites failed. Please fix them before using Kepler.", style="bold yellow")
+
+
+def detect_gcp_credentials() -> Dict[str, Optional[str]]:
+    """
+    Detecta automáticamente las credenciales de GCP disponibles en el sistema.
+    
+    Returns:
+        Dict con información de credenciales encontradas
+    """
+    credentials_info = {
+        'project_id': None,
+        'credentials_path': None,
+        'auth_method': None,
+        'service_account_email': None,
+        'gcloud_installed': False
+    }
+    
+    # 1. Verificar si gcloud está instalado
+    try:
+        result = subprocess.run(['gcloud', '--version'], 
+                              capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            credentials_info['gcloud_installed'] = True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        credentials_info['gcloud_installed'] = False
+    
+    # 2. Detectar Application Default Credentials (ADC)
+    adc_path = os.path.expanduser('~/.config/gcloud/application_default_credentials.json')
+    if os.path.exists(adc_path):
+        try:
+            with open(adc_path, 'r') as f:
+                adc_data = json.load(f)
+                credentials_info['credentials_path'] = adc_path
+                credentials_info['auth_method'] = 'Application Default Credentials (ADC)'
+                if 'client_email' in adc_data:
+                    credentials_info['service_account_email'] = adc_data['client_email']
+        except (json.JSONDecodeError, IOError):
+            pass
+    
+    # 3. Verificar variable de entorno GOOGLE_APPLICATION_CREDENTIALS
+    google_creds_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+    if google_creds_path and os.path.exists(google_creds_path):
+        try:
+            with open(google_creds_path, 'r') as f:
+                creds_data = json.load(f)
+                credentials_info['credentials_path'] = google_creds_path
+                credentials_info['auth_method'] = 'Service Account Key File'
+                if 'client_email' in creds_data:
+                    credentials_info['service_account_email'] = creds_data['client_email']
+                if 'project_id' in creds_data:
+                    credentials_info['project_id'] = creds_data['project_id']
+        except (json.JSONDecodeError, IOError):
+            pass
+    
+    # 4. Obtener project ID desde gcloud si está disponible
+    if credentials_info['gcloud_installed'] and not credentials_info['project_id']:
+        try:
+            result = subprocess.run(['gcloud', 'config', 'get-value', 'project'],
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0 and result.stdout.strip():
+                project_id = result.stdout.strip()
+                if project_id != '(unset)':
+                    credentials_info['project_id'] = project_id
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    
+    # 5. Verificar variable de entorno GCP_PROJECT_ID o GOOGLE_CLOUD_PROJECT
+    env_project = os.environ.get('GCP_PROJECT_ID') or os.environ.get('GOOGLE_CLOUD_PROJECT')
+    if env_project and not credentials_info['project_id']:
+        credentials_info['project_id'] = env_project
+    
+    return credentials_info
+
+
+def suggest_gcp_configuration(credentials_info: Dict[str, Optional[str]]) -> Dict[str, str]:
+    """
+    Sugiere configuración de GCP basada en las credenciales detectadas.
+    
+    Args:
+        credentials_info: Info de credenciales detectadas
+        
+    Returns:
+        Dict con sugerencias de configuración
+    """
+    suggestions = {}
+    
+    if credentials_info['project_id']:
+        suggestions['project_id'] = credentials_info['project_id']
+    else:
+        suggestions['project_id'] = "${GCP_PROJECT_ID}"
+    
+    # Sugerir región por defecto
+    suggestions['region'] = "us-central1"
+    suggestions['compute_zone'] = "us-central1-a"
+    
+    # Configuración de Cloud Run
+    suggestions['cloud_run'] = {
+        'region': suggestions['region'],
+        'service_name': 'kepler-model-api',
+        'memory': '2Gi',
+        'cpu': '1',
+        'max_instances': 10
+    }
+    
+    return suggestions
+
+
+def print_gcp_detection_report(credentials_info: Dict[str, Optional[str]]):
+    """Imprime un reporte detallado de las credenciales GCP detectadas."""
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    
+    console = Console()
+    
+    # Panel principal
+    if credentials_info['auth_method']:
+        title = "✅ Credenciales GCP Detectadas"
+        style = "green"
+    else:
+        title = "⚠️  Credenciales GCP No Detectadas"
+        style = "yellow"
+    
+    # Tabla de detalles
+    table = Table(title="Estado de Credenciales GCP")
+    table.add_column("Elemento", style="cyan")
+    table.add_column("Estado", style="magenta")
+    table.add_column("Valor/Detalle", style="white")
+    
+    # gcloud CLI
+    gcloud_status = "✅ Instalado" if credentials_info['gcloud_installed'] else "❌ No instalado"
+    table.add_row("gcloud CLI", gcloud_status, "")
+    
+    # Método de autenticación
+    if credentials_info['auth_method']:
+        table.add_row("Método Auth", "✅ Detectado", credentials_info['auth_method'])
+    else:
+        table.add_row("Método Auth", "❌ No detectado", "ADC o Service Account requerido")
+    
+    # Project ID
+    if credentials_info['project_id']:
+        table.add_row("Project ID", "✅ Configurado", credentials_info['project_id'])
+    else:
+        table.add_row("Project ID", "⚠️  No detectado", "Requerirá configuración manual")
+    
+    # Service Account
+    if credentials_info['service_account_email']:
+        table.add_row("Service Account", "✅ Detectado", credentials_info['service_account_email'])
+    else:
+        table.add_row("Service Account", "ℹ️  N/A", "User credentials o no disponible")
+    
+    # Archivo de credenciales
+    if credentials_info['credentials_path']:
+        table.add_row("Archivo Creds", "✅ Encontrado", credentials_info['credentials_path'])
+    
+    console.print(Panel(table, title=title, border_style=style))
+    
+    # Sugerencias
+    if not credentials_info['auth_method']:
+        console.print("\n🔧 [bold yellow]Pasos para configurar GCP:[/bold yellow]")
+        console.print("1. Instalar gcloud CLI: https://cloud.google.com/sdk/docs/install")
+        console.print("2. Autenticarse: `gcloud auth application-default login`")
+        console.print("3. Configurar proyecto: `gcloud config set project YOUR_PROJECT_ID`")
+        console.print("4. Ejecutar: `kepler validate` nuevamente")
+    
+    elif not credentials_info['project_id']:
+        console.print("\n🔧 [bold yellow]Configurar Project ID:[/bold yellow]")
+        console.print("Ejecutar: `gcloud config set project YOUR_PROJECT_ID`")
+        console.print("O configurar: `export GCP_PROJECT_ID=your-project-id`")
+
+
+def load_config(config_file: str = "kepler.yml") -> KeplerConfig:
+    """
+    Load Kepler configuration automatically.
+    
+    This function provides a simple way to load configuration for data scientists,
+    handling all the complexity of finding files and loading environment variables.
+    
+    Args:
+        config_file: Path to configuration file (default: kepler.yml)
+        
+    Returns:
+        KeplerConfig: Loaded configuration object
+        
+    Raises:
+        ValueError: If configuration cannot be loaded
+    """
+    
+    # Load environment variables from .env file if it exists
+    env_files = ['.env', '../.env', '../../.env']
+    for env_file in env_files:
+        if os.path.exists(env_file):
+            load_dotenv(env_file)
+            break
+    
+    # Find configuration file
+    config_paths = [
+        config_file,
+        f"../{config_file}",
+        f"../../{config_file}",
+        f"./{config_file}"
+    ]
+    
+    config_path = None
+    for path in config_paths:
+        if os.path.exists(path):
+            config_path = path
+            break
+    
+    if not config_path:
+        raise ValueError(f"❌ Configuration file '{config_file}' not found in expected locations")
+    
+    # Load YAML configuration
+    try:
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f)
+    except Exception as e:
+        raise ValueError(f"❌ Error reading configuration file: {e}")
+    
+    # Merge with environment variables
+    if 'splunk' in config_data:
+        # Override with environment variables if present
+        if os.getenv('SPLUNK_TOKEN'):
+            config_data['splunk']['token'] = os.getenv('SPLUNK_TOKEN')
+        if os.getenv('SPLUNK_HEC_TOKEN'):
+            config_data['splunk']['hec_token'] = os.getenv('SPLUNK_HEC_TOKEN')
+    
+    if 'gcp' in config_data:
+        if os.getenv('GCP_PROJECT_ID'):
+            config_data['gcp']['project_id'] = os.getenv('GCP_PROJECT_ID')
+    
+    # Create configuration object
+    try:
+        return KeplerConfig(**config_data)
+    except Exception as e:
+        raise ValueError(f"❌ Invalid configuration: {e}")

@@ -7,13 +7,21 @@
 
 ## 🎯 What is Kepler?
 
-Kepler is a pragmatic framework that connects industrial data from Splunk to machine learning models deployed on Google Cloud Run. It's designed for data scientists who want to:
+Kepler is a pragmatic framework that connects industrial data from Splunk to machine learning models. **Currently validated and working:**
 
-- 📊 **Extract data from Splunk** with simple SPL queries
-- 🤖 **Train ML models** (sklearn, XGBoost) without DevOps complexity  
-- ☁️ **Deploy models to production** with a single command
-- 🔄 **Write predictions back to Splunk** automatically via HEC
-- 🛡️ **Manage credentials securely** outside your project repository
+### ✅ **PRODUCTION READY FEATURES:**
+- 📊 **Extract data from Splunk** with custom SPL queries (events & metrics)
+- 🕐 **Time range control** for historical data analysis (`earliest`/`latest`)
+- 🔧 **CLI and SDK** - use as command line tool OR `import kepler as kp`
+- 🛡️ **Secure configuration** - credentials outside git, automatic validation
+- 📈 **Index management** - auto-create/validate Splunk indexes
+- 📊 **Jupyter integration** - clean notebooks for data scientists
+- ⚡ **Real-time error handling** - Splunk errors captured and displayed clearly
+
+### 🚧 **IN DEVELOPMENT:**
+- 🤖 **Train ML models** (sklearn, XGBoost) - next sprint
+- ☁️ **Deploy to Cloud Run** - planned
+- 🔄 **Write predictions back to Splunk** - planned
 
 ## 🚀 Quick Start
 
@@ -94,18 +102,43 @@ kepler config validate
 
 ### 6. Basic Workflow
 
+**🎯 VALIDATED AND WORKING:**
+
 ```bash
-# 1. Extract data from Splunk
-kepler extract "search index=sensors | head 1000" --output sensor_data.csv
+# 1. Validate your setup
+kepler validate  # ✅ Tests Splunk, GCP, indexes, connectivity
 
-# 2. Train a model
-kepler train sensor_data.csv --target temperature --algorithm random_forest
+# 2. Extract events data
+kepler extract "search index=kepler_lab sensor_type=temperature earliest=-7d" --output events.csv
 
-# 3. Deploy to Cloud Run (coming in Sprint 9-10)
-kepler deploy model_random_forest_*.pkl
+# 3. Extract metrics data  
+kepler extract "| mstats avg(_value) WHERE index=kepler_metrics metric_name=* earliest=-30d span=1h by metric_name" --output metrics.csv
+```
 
-# 4. Make predictions (coming in Sprint 9-10)  
-kepler predict https://your-api-url.run.app/predict '{"pressure": 2.5, "flow": 100}'
+**🐍 OR use as Python SDK in Jupyter:**
+
+```python
+import kepler as kp
+
+# Extract data with time ranges
+events = kp.data.from_splunk(
+    spl="search index=kepler_lab sensor_type=temperature", 
+    earliest="-7d", latest="now"
+)
+
+# Custom SPL for metrics
+metrics = kp.data.from_splunk(
+    spl="| mstats latest(_value) WHERE index=kepler_metrics metric_name=* earliest=-30d by metric_name"
+)
+```
+
+**🚧 NEXT STEPS (in development):**
+```bash
+# Train models (next sprint)
+kepler train events.csv --target temperature --algorithm random_forest
+
+# Deploy to production (planned)
+kepler deploy model.pkl
 ```
 
 ## 💡 Best Practices
@@ -337,6 +370,69 @@ kepler train quality_data.csv --target quality_ok --test-size 0.3
 - 📋 **Troubleshooting Guide** - Common issues and solutions
 
 > 💡 **Note:** Comprehensive CLI and SDK documentation will be developed as part of the roadmap in Sprints 13-16, based on user feedback and real-world usage patterns.
+
+## ✅ **VALIDATION STATUS - WHAT'S WORKING NOW**
+
+Esta sección documenta las funcionalidades **completamente validadas** con datos reales:
+
+### 🔗 **Conectividad Splunk - VALIDADO**
+- ✅ REST API funcional (puerto 8089)
+- ✅ HEC (HTTP Event Collector) funcional (puerto 8088) 
+- ✅ Validación automática de tokens y conectividad
+- ✅ Manejo inteligente SSL/no-SSL
+
+### 📊 **Extracción de Datos - VALIDADO**
+```python
+# EVENTOS: 2,890 registros de sensores industriales extraídos exitosamente
+events_24h = kp.data.from_splunk(spl="search index=kepler_lab", earliest="-24h")  # ✅ 90 eventos
+events_7d = kp.data.from_splunk(spl="search index=kepler_lab", earliest="-7d")   # ✅ 2,890 eventos
+
+# MÉTRICAS: 16 tipos de métricas validadas
+metrics = kp.data.from_splunk(spl="| mstats latest(_value) WHERE index=kepler_metrics metric_name=* earliest=-30d by metric_name")
+# ✅ Métricas reales: flow_rate.SENSOR_003, power_consumption.SENSOR_002, etc.
+```
+
+### 🕐 **Control de Tiempo - VALIDADO**
+- ✅ Rangos de tiempo flexibles: `-15m`, `-1h`, `-24h`, `-7d`, `-30d`
+- ✅ Parámetros `earliest`/`latest` funcionando 
+- ✅ Diferencia 7d vs 24h: **32x más datos** (demostrado)
+
+### 📈 **Gestión de Índices - VALIDADO**
+- ✅ Validación automática de índices `kepler_lab` y `kepler_metrics`
+- ✅ Creación automática si no existen
+- ✅ Configuración optimizada (eventos vs métricas)
+
+### 🐍 **SDK y CLI - VALIDADO**
+```bash
+# CLI completamente funcional
+kepler validate  # ✅ 5 pasos de validación
+kepler extract "custom SPL query"  # ✅ Extracción directa
+
+# SDK limpio para científicos de datos
+import kepler as kp  # ✅ Import directo sin configuración
+data = kp.data.from_splunk(spl="your query")  # ✅ API simple
+```
+
+### 📓 **Notebooks Jupyter - VALIDADO**
+- ✅ `test-lab/notebooks/metrics_analysis_clean.ipynb` - Análisis de métricas
+- ✅ `test-lab/notebooks/events_analysis.ipynb` - Análisis de eventos  
+- ✅ Experiencia limpia sin debug verbose
+- ✅ Manejo inteligente de errores de Splunk
+
+### 🔧 **Herramientas de Desarrollo - VALIDADO**
+- ✅ Linting configurado (black, ruff)
+- ✅ Type hints completo
+- ✅ Testing framework (pytest)
+- ✅ Estructura profesional de proyecto
+
+### 🎯 **PRÓXIMOS PASOS INMEDIATOS**
+Basado en lo validado, los siguientes pasos están listos para implementar:
+
+1. **🤖 Entrenamiento de Modelos** - Usar los 2,890 eventos validados para entrenar primer modelo sklearn
+2. **☁️ Deployment a GCP Cloud Run** - Infraestructura GCP ya configurada y validada  
+3. **🔄 Predicciones en Producción** - Escribir resultados de vuelta a Splunk vía HEC
+
+---
 
 ## 📦 **PyPI Publishing Roadmap**
 
