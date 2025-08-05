@@ -23,6 +23,20 @@ Kepler is a pragmatic framework that connects industrial data from Splunk to mac
 - ☁️ **Deploy to Cloud Run** - planned
 - 🔄 **Write predictions back to Splunk** - planned
 
+---
+
+## 📚 Documentación
+
+### 📖 **Guías Principales**
+- **[SDK y CLI - Guía Completa](./docs/SDK_CLI_GUIDE.md)** - Documentación educativa detallada para aprender el framework
+- **[Estado de Validación](./docs/VALIDATION_STATUS.md)** - Funcionalidades validadas con datos reales
+- **[Índice Completo de Documentación](./docs/README.md)** - Navegación por toda la documentación
+
+### 🎯 **Acceso Rápido por Rol**
+- **👨‍💻 Científico de Datos:** [SDK Python](./docs/SDK_CLI_GUIDE.md#sdk---python-api) | [Notebooks](./test-lab/notebooks/)
+- **🔧 DevOps/Ingenieros:** [CLI Commands](./docs/SDK_CLI_GUIDE.md#cli---línea-de-comandos) | [Automatización](./docs/SDK_CLI_GUIDE.md#caso-2-pipeline-de-datos-automatizado)
+- **👔 Managers:** [Funcionalidades actuales](#production-ready-features) | [Roadmap](./docs/SDK_CLI_GUIDE.md#evolución-y-roadmap)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -326,139 +340,40 @@ kepler train quality_data.csv --target quality_ok --test-size 0.3
 [Splunk Data] → [kepler extract] → [CSV Files] → [kepler train] → [Model.pkl] → [kepler deploy] → [Cloud Run API] → [Predictions] → [Splunk HEC]
 ```
 
-## 🛠️ Development Status
+## 🔧 Estado del Proyecto
 
-**Current Version: 0.1.0 (MVP Ready)**
+**Versión Actual: 0.1.0**
 
-✅ **Completed Features:**
-- ✅ **CLI Foundation:** Complete CLI with typer, rich output, error handling
-- ✅ **Project Management:** `kepler init`, `kepler config` commands
-- ✅ **Secure Configuration:** Global config management (`~/.kepler/config.yml`)
-- ✅ **Splunk Integration:** Bidirectional data flow (extract + HEC write)
-- ✅ **ML Training:** sklearn RandomForest, Linear models, XGBoost basic
-- ✅ **Data Validation:** Quality assessment, cleaning, ML readiness checks
-- ✅ **Testing Suite:** Unit, integration, and realistic end-to-end tests
-- ✅ **Connection Resilience:** SSL fallbacks, error handling, connectivity validation
+Ver detalles completos del estado en:
+- **[Estado de Validación](./docs/VALIDATION_STATUS.md)** - Funcionalidades probadas con datos reales
+- **[Roadmap Completo](./docs/SDK_CLI_GUIDE.md#evolución-y-roadmap)** - Evolución por sprints
 
-🚧 **In Progress (Sprint 6):**
-- XGBoost enhancement and hyperparameter tuning
-- Model evaluation and reporting improvements
-- Advanced model serialization with metadata
+## ✅ **Status de Validación**
 
-📋 **Next Priorities:**
-- Sprint 7-8: Advanced ML features (time series, model comparison)
-- Sprint 9-10: Google Cloud Run deployment (`kepler deploy`)
-- Sprint 11-12: Production monitoring and model versioning
-- Sprint 13-16: Comprehensive documentation and user validation
+**Datos reales probados:** 2,890 eventos + 16 métricas extraídos exitosamente
 
-**🎯 MVP Status:** Ready for early adopter testing with core Splunk ↔ ML workflow.
+Para detalles completos de validación, ver **[Estado de Validación](./docs/VALIDATION_STATUS.md)**
 
-## 📖 Documentation Roadmap
-
-### Current Documentation (MVP)
-- ✅ **README.md** - Quick start and basic usage
-- ✅ **Inline Help** - `kepler --help`, `kepler <command> --help`
-- ✅ **Configuration Guide** - Global and project configuration
-- ✅ **Integration Tests** - `/tests/integration/README.md`
-
-### Planned Documentation (Post-MVP)
-- 📋 **Complete CLI Reference** - Detailed documentation for all commands and options
-- 📋 **SDK Documentation** - Full API reference for `import kepler` usage in notebooks
-- 📋 **Tutorials & Examples** - Step-by-step guides for common industrial use cases
-- 📋 **Architecture Guide** - Technical deep-dive for contributors and advanced users
-- 📋 **Deployment Guide** - Production deployment best practices
-- 📋 **Troubleshooting Guide** - Common issues and solutions
-
-> 💡 **Note:** Comprehensive CLI and SDK documentation will be developed as part of the roadmap in Sprints 13-16, based on user feedback and real-world usage patterns.
-
-## ✅ **VALIDATION STATUS - WHAT'S WORKING NOW**
-
-Esta sección documenta las funcionalidades **completamente validadas** con datos reales:
-
-### 🔗 **Conectividad Splunk - VALIDADO**
-- ✅ REST API funcional (puerto 8089)
-- ✅ HEC (HTTP Event Collector) funcional (puerto 8088) 
-- ✅ Validación automática de tokens y conectividad
-- ✅ Manejo inteligente SSL/no-SSL
-
-### 📊 **Extracción de Datos - VALIDADO**
-```python
-# EVENTOS: 2,890 registros de sensores industriales extraídos exitosamente
-events_24h = kp.data.from_splunk(spl="search index=kepler_lab", earliest="-24h")  # ✅ 90 eventos
-events_7d = kp.data.from_splunk(spl="search index=kepler_lab", earliest="-7d")   # ✅ 2,890 eventos
-
-# MÉTRICAS: 16 tipos de métricas validadas
-metrics = kp.data.from_splunk(spl="| mstats latest(_value) WHERE index=kepler_metrics metric_name=* earliest=-30d by metric_name")
-# ✅ Métricas reales: flow_rate.SENSOR_003, power_consumption.SENSOR_002, etc.
-```
-
-### 🕐 **Control de Tiempo - VALIDADO**
-- ✅ Rangos de tiempo flexibles: `-15m`, `-1h`, `-24h`, `-7d`, `-30d`
-- ✅ Parámetros `earliest`/`latest` funcionando 
-- ✅ Diferencia 7d vs 24h: **32x más datos** (demostrado)
-
-### 📈 **Gestión de Índices - VALIDADO**
-- ✅ Validación automática de índices `kepler_lab` y `kepler_metrics`
-- ✅ Creación automática si no existen
-- ✅ Configuración optimizada (eventos vs métricas)
-
-### 🐍 **SDK y CLI - VALIDADO**
-```bash
-# CLI completamente funcional
-kepler validate  # ✅ 5 pasos de validación
-kepler extract "custom SPL query"  # ✅ Extracción directa
-
-# SDK limpio para científicos de datos
-import kepler as kp  # ✅ Import directo sin configuración
-data = kp.data.from_splunk(spl="your query")  # ✅ API simple
-```
-
-### 📓 **Notebooks Jupyter - VALIDADO**
-- ✅ `test-lab/notebooks/metrics_analysis_clean.ipynb` - Análisis de métricas
-- ✅ `test-lab/notebooks/events_analysis.ipynb` - Análisis de eventos  
-- ✅ Experiencia limpia sin debug verbose
-- ✅ Manejo inteligente de errores de Splunk
-
-### 🔧 **Herramientas de Desarrollo - VALIDADO**
-- ✅ Linting configurado (black, ruff)
-- ✅ Type hints completo
-- ✅ Testing framework (pytest)
-- ✅ Estructura profesional de proyecto
-
-### 🎯 **PRÓXIMOS PASOS INMEDIATOS**
-Basado en lo validado, los siguientes pasos están listos para implementar:
-
-1. **🤖 Entrenamiento de Modelos** - Usar los 2,890 eventos validados para entrenar primer modelo sklearn
-2. **☁️ Deployment a GCP Cloud Run** - Infraestructura GCP ya configurada y validada  
-3. **🔄 Predicciones en Producción** - Escribir resultados de vuelta a Splunk vía HEC
+### 🎯 **Próximos Pasos**
+1. **🤖 Entrenamiento de Modelos** - Usando los datos validados
+2. **☁️ Deployment a GCP Cloud Run** - Infraestructura configurada  
+3. **🔄 Predicciones en Producción** - Escritura de resultados a Splunk
 
 ---
 
-## 📦 **PyPI Publishing Roadmap**
+## 📦 **Instalación**
 
-### What is PyPI?
-[PyPI (Python Package Index)](https://pypi.org/) is the official repository for Python packages. When a package is published to PyPI, users can install it with simple `pip install package-name` commands.
-
-### Current Status: GitHub Installation
-- **Now:** `git clone` + `pip install .` (temporary solution)
-- **Target:** Sprint 13 - PyPI publishing
-
-### PyPI Publishing Process (Sprint 13)
+### Método Actual (GitHub)
 ```bash
-# What will be done internally:
-1. Create PyPI account
-2. Configure package metadata (already in pyproject.toml)
-3. Build package: python -m build
-4. Upload to PyPI: twine upload dist/*
-5. Test installation: pip install kepler-framework
+git clone https://github.com/lufermalgo/kepler.git /tmp/kepler-install
+cd /tmp/kepler-install && pip install .
+rm -rf /tmp/kepler-install
 ```
 
-### Benefits After PyPI Publishing
-- ✅ **Simple installation:** `pip install kepler-framework`
-- ✅ **Automatic updates:** `pip install --upgrade kepler-framework`
-- ✅ **Version management:** `pip install kepler-framework==0.2.0`
-- ✅ **No repository cloning** required
-- ✅ **Global accessibility** for data scientists worldwide
+### Futuro (PyPI - Sprint 13)
+```bash
+pip install kepler-framework  # Objetivo: instalación simple
+```
 
 ## 🤝 Contributing
 
