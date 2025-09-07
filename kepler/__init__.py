@@ -29,6 +29,9 @@ from kepler import train_unified
 # NEW: AutoML capabilities (Task 1.11)
 from kepler import automl
 
+# NEW: Versioning and reproducibility (Task 5.1)
+from kepler import versioning
+
 # Internal API (for advanced users) - moved to avoid circular imports
 # from kepler.core.config import KeplerConfig, load_config
 # from kepler.core.project import KeplerProject
@@ -38,6 +41,7 @@ __all__ = [
     "train",         # Simple training: kp.train.random_forest()
     "train_unified", # Unified training API: kp.train_unified.train()
     "automl",        # AutoML capabilities: kp.automl.auto_train(), kp.automl.select_algorithm()
+    "versioning",    # Data versioning and reproducibility: kp.versioning.version_data()
     "results",       # Simple results: kp.results.to_splunk()
     "libs",          # Unlimited library support: kp.libs.install(), kp.libs.template()
     "__version__",
