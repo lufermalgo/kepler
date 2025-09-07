@@ -7,7 +7,7 @@
 
 ## 1. Introducción/Overview
 
-**Kepler** es un framework de ecosistema ML diseñado para eliminar completamente las barreras entre datos industriales almacenados en Splunk y la experimentación libre con cualquier librería de ciencia de datos. 
+**Kepler** es un framework de ecosistema de **Inteligencia Artificial y Ciencia de Datos** diseñado para eliminar completamente las barreras entre datos industriales almacenados en Splunk y la experimentación libre con **cualquier librería Python** - desde PyPI oficial hasta repositorios privados, librerías experimentales, y desarrollos custom. 
 
 ### Contexto del Problema
 
@@ -24,7 +24,12 @@ Las organizaciones industriales enfrentan limitaciones críticas con las herrami
 
 Los científicos de datos siguen teniendo **trabas para experimentar libremente y desplegar fácilmente**, incluso con las soluciones "avanzadas" de Splunk. Necesitan un framework que les permita:
 
-1. **Experimentación sin restricciones** con cualquier librería Python
+1. **Experimentación sin restricciones** con cualquier librería Python:
+   - PyPI oficial (sklearn, transformers, pytorch)
+   - Repositorios GitHub/GitLab (experimentales, forks)
+   - Librerías corporativas privadas  
+   - Desarrollos custom y locales
+   - Cualquier fuente de código Python
 2. **Gestión automática de ecosistemas** desarrollo/producción
 3. **Despliegue sin fricción** de notebook a producción  
 4. **Arquitectura modular multi-cloud** sin vendor lock-in
@@ -32,7 +37,7 @@ Los científicos de datos siguen teniendo **trabas para experimentar libremente 
 ## 2. Goals
 
 ### Objetivos Primarios
-1. **Maximizar posibilidades de experimentación** para analistas y científicos de datos con diferentes frameworks ML
+1. **Maximizar posibilidades de experimentación** para analistas y científicos de datos con **cualquier tecnología de IA**: Machine Learning, Deep Learning, IA Generativa, NLP, Computer Vision, y cualquier librería Python existente o futura
 2. **Simplificar el paso a producción** de semanas a días
 3. **Gestionar automáticamente ecosistemas** de desarrollo y producción
 4. **Eliminar restricciones de licenciamiento** basado en ingesta Splunk
@@ -64,6 +69,151 @@ Los científicos de datos siguen teniendo **trabas para experimentar libremente 
 - **Como** CTO, **quiero** reducir dependencia de soluciones propietarias **para que** tengamos flexibilidad tecnológica
 - **Como** gerente de proyecto, **quiero** métricas claras de adopción y ROI **para que** pueda justificar la inversión
 - **Como** arquitecto, **quiero** extensibilidad via plugins **para que** podamos adaptar el framework a necesidades específicas
+
+## 3.1. Soporte Ilimitado de Librerías Python
+
+### Filosofía: "Si está en Python, Kepler lo soporta"
+
+Kepler está diseñado para **no limitar nunca** las opciones tecnológicas del científico de datos. El framework debe soportar:
+
+#### Fuentes de Librerías Soportadas
+1. **PyPI Oficial**: `pip install numpy`, `pip install transformers`
+2. **Repositorios Git**: `pip install git+https://github.com/user/repo.git`
+3. **Repositorios Privados**: Con autenticación SSH/HTTPS
+4. **Librerías Locales**: `pip install -e ./mi-libreria-custom`
+5. **Archivos Wheel/Tar**: `pip install ./libreria-custom-1.0.whl`
+6. **Forks Personalizados**: Modificaciones de librerías existentes
+7. **Versiones Experimentales**: Alpha, beta, release candidates
+
+#### Ejemplos de Ecosistemas Soportados
+
+```python
+# Machine Learning Tradicional
+import sklearn, xgboost, lightgbm, catboost
+
+# Deep Learning
+import torch, tensorflow, keras, jax, lightning
+
+# IA Generativa
+import transformers, langchain, openai, anthropic
+import diffusers, stable_diffusion_webui
+
+# Análisis de Datos
+import pandas, polars, dask, ray
+import matplotlib, seaborn, plotly, bokeh
+
+# Especialidades
+import opencv, pillow  # Computer Vision  
+import spacy, nltk    # NLP
+import prophet, tslearn  # Time Series
+import gymnasium, stable_baselines3  # RL
+import networkx, igraph  # Graph Analysis
+
+# Librerías Experimentales/Custom
+import mi_libreria_corporativa
+import experimental_ai_lib  # Desde GitHub
+import custom_industrial_models  # Desarrollo propio
+```
+
+#### Mecanismos de Gestión de Dependencias
+
+**Kepler proporciona múltiples estrategias:**
+
+1. **requirements.txt por proyecto**:
+```bash
+kepler init mi-proyecto --requirements-file
+# Genera requirements.txt personalizable
+```
+
+2. **Conda environments**:
+```bash  
+kepler env create --conda --gpu-support
+# Crea environment conda con CUDA
+```
+
+3. **Poetry para resolución avanzada**:
+```bash
+kepler env create --poetry --python=3.11
+# Usa Poetry para dependency resolution
+```
+
+4. **Docker para casos extremos**:
+```bash
+kepler env create --docker --base-image=pytorch/pytorch
+# Container custom para dependencias complejas
+```
+
+#### Guía para Librerías Custom
+
+**Escenario 1: Librería GitHub experimental**
+```bash
+# En requirements.txt del proyecto
+git+https://github.com/research-lab/experimental-ai.git@v0.1.0-alpha
+```
+
+**Escenario 2: Librería corporativa privada**
+```bash
+# Con SSH key configurada
+git+ssh://git@github.com/company/private-ml-lib.git
+```
+
+**Escenario 3: Desarrollo local**
+```bash
+# Estructura del proyecto Kepler
+mi-proyecto/
+├── kepler.yml
+├── requirements.txt  
+├── custom-libs/
+│   └── mi-libreria/
+│       ├── setup.py
+│       └── mi_libreria/
+└── notebooks/
+
+# En requirements.txt
+-e ./custom-libs/mi-libreria
+```
+
+**Escenario 4: Fork personalizado**
+```bash
+# Fork de transformers con modificaciones
+git+https://github.com/mi-usuario/transformers.git@custom-industrial-models
+```
+
+#### Garantías del Framework
+
+1. **Aislamiento por proyecto**: Cada proyecto Kepler tiene su propio environment
+2. **Reproducibilidad**: Lock files automáticos para dependency pinning  
+3. **Deployment automático**: Las dependencias se empaquetan automáticamente
+4. **Conflict resolution**: Detección y resolución de conflictos de versiones
+5. **Documentation auto**: Documentación automática de dependencias usadas
+
+### Casos de Uso Reales
+
+**Científico encuentra librería experimental en GitHub:**
+```python
+# 1. Añade a requirements.txt
+git+https://github.com/research/new-algorithm.git
+
+# 2. Kepler reconstruye environment automáticamente  
+kepler env update
+
+# 3. Usa normalmente en notebook
+import new_algorithm
+model = new_algorithm.ExperimentalModel()
+```
+
+**Empresa desarrolla librería interna:**
+```python
+# 1. Librería en repo privado
+# requirements.txt:
+git+ssh://git@internal-gitlab.com/ai-team/industrial-models.git
+
+# 2. Kepler maneja autenticación SSH
+kepler env create --ssh-key ~/.ssh/company_key
+
+# 3. Deployment incluye librería automáticamente
+kepler deploy model --include-private-deps
+```
 
 ## 4. Functional Requirements
 

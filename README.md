@@ -3,11 +3,11 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-🚀 **Ecosystem framework that eliminates barriers between industrial data and free experimentation with any data science library.**
+🚀 **Ecosystem framework that eliminates barriers between industrial data and unlimited experimentation with ANY Python library - from PyPI to custom developments.**
 
 ## 🎯 What is Kepler?
 
-**Kepler** is an ML ecosystem framework designed to **maximize experimentation possibilities** for analysts and data scientists, allowing use of different ML frameworks and libraries with easy transition to production. 
+**Kepler** is an **AI and Data Science ecosystem framework** designed to **maximize experimentation possibilities** for analysts and data scientists, allowing use of **any Python library** (ML, Deep Learning, Generative AI, custom, experimental) with easy transition to production. 
 
 ### The Problem We Solve
 
@@ -19,7 +19,12 @@ Current Splunk ML/Deep Learning Toolkit limitations:
 ### Our Solution: Zero Friction ML Environment
 
 Kepler provides **complete freedom** for data scientists to:
-1. **Experiment without restrictions** - Any Python library (PyTorch, TensorFlow, sklearn, pandas, etc.)
+1. **Experiment without restrictions** - ANY Python library:
+   - **PyPI official**: sklearn, transformers, pytorch, tensorflow
+   - **GitHub experimental**: research repos, alpha versions
+   - **Corporate private**: internal company libraries  
+   - **Custom developments**: your own algorithms
+   - **Forked versions**: modified existing libraries
 2. **Automatic ecosystem management** - Dev/production environments configured automatically  
 3. **Frictionless deployment** - From notebook to production with one command
 4. **Modular multi-cloud architecture** - No vendor lock-in, extensible via plugins

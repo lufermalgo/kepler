@@ -21,6 +21,12 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
   - Casos de uso para científicos de datos
   - Análisis avanzados y visualización
 
+- **[Custom Libraries Guide](./CUSTOM_LIBRARIES_GUIDE.md)** - Soporte ilimitado de librerías
+  - PyPI oficial, GitHub experimental, repos privados
+  - Librerías custom y desarrollos propios
+  - Gestión automática de dependencias
+  - Deployment con librerías custom
+
 ### 🔧 Información Técnica
 - **[Estado de Validación](./VALIDATION_STATUS.md)** - Estado técnico detallado
   - Funcionalidades validadas con datos reales
