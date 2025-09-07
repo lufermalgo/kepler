@@ -231,11 +231,35 @@ class LibraryManager:
         """Parse local file requirement (wheel or tarball)"""
         if line.endswith('.whl'):
             source = LibrarySource.LOCAL_WHEEL
-        else:
+        elif line.endswith('.tar.gz') or line.endswith('.tar'):
             source = LibrarySource.LOCAL_TARBALL
-            
-        name = self._extract_name_from_path(line)
+        else:
+            source = LibrarySource.LOCAL_TARBALL  # Default for other file types
         
+        # Extract name from filename
+        filename = Path(line).name
+        if filename.endswith('.tar.gz'):
+            base_name = filename.replace('.tar.gz', '')
+        elif filename.endswith('.tar'):
+            base_name = filename.replace('.tar', '')
+        elif filename.endswith('.whl'):
+            base_name = filename.replace('.whl', '')
+        else:
+            base_name = Path(line).stem
+        
+        # Extract package name from base name (handle versions)
+        parts = base_name.split('-')
+        if len(parts) > 1:
+            # Find where version starts (first part with digit)
+            name_parts = []
+            for part in parts:
+                if part and part[0].isdigit():
+                    break
+                name_parts.append(part)
+            name = '-'.join(name_parts) if name_parts else parts[0]
+        else:
+            name = base_name
+            
         return LibrarySpec(
             name=name,
             source=source,
@@ -328,11 +352,17 @@ class LibraryManager:
         # Try to extract from filename
         filename = url.split('/')[-1]
         if filename.endswith('.tar.gz'):
-            return filename.replace('.tar.gz', '').split('-')[0]
+            base_name = filename.replace('.tar.gz', '')
+            # Handle version patterns like package-1.0.0
+            parts = base_name.split('-')
+            if len(parts) > 1 and parts[1] and parts[1][0].isdigit():
+                return parts[0]
+            else:
+                return base_name
         elif filename.endswith('.whl'):
-            return filename.split('-')[0]
+            return self._extract_name_from_path(filename)
         else:
-            return "unknown"
+            return filename.split('.')[0] if '.' in filename else filename
     
     def install_library(self, spec: LibrarySpec, upgrade: bool = False) -> bool:
         """
@@ -613,6 +643,9 @@ class LibraryManager:
         
         if template not in templates:
             raise LibraryManagementError(f"Unknown template: {template}. Available: {list(templates.keys())}")
+        
+        # Ensure directory exists
+        self.requirements_file.parent.mkdir(parents=True, exist_ok=True)
         
         # Write requirements.txt
         with open(self.requirements_file, 'w') as f:
