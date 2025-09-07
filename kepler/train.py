@@ -907,3 +907,262 @@ def jax(
         "JAX trainer not yet implemented",
         suggestion="Use PyTorch for now: kp.train.pytorch(data, target)"
     )
+
+
+# Generative AI Framework Support
+def transformers(
+    data: pd.DataFrame,
+    text_column: str,
+    target: str,
+    model_name: str = "distilbert-base-uncased",
+    task_type: str = "classification",
+    max_length: int = 128,
+    epochs: int = 3,
+    batch_size: int = 16,
+    learning_rate: float = 2e-5,
+    **kwargs
+) -> KeplerModel:
+    """
+    Fine-tune a Hugging Face Transformer model for text tasks.
+    
+    Supports text classification, sentiment analysis, NER, and more.
+    
+    Args:
+        data: DataFrame with text and target columns
+        text_column: Name of column containing text data
+        target: Name of target column
+        model_name: Hugging Face model name (default: "distilbert-base-uncased")
+        task_type: "classification", "regression", "token_classification"
+        max_length: Maximum sequence length (default: 128)
+        epochs: Number of training epochs (default: 3)
+        batch_size: Batch size for training (default: 16)
+        learning_rate: Learning rate (default: 2e-5)
+        **kwargs: Additional transformer parameters
+        
+    Returns:
+        KeplerModel: Fine-tuned transformer model
+        
+    Example:
+        import kepler as kp
+        
+        # Text classification
+        model = kp.train.transformers(
+            data, 
+            text_column="review_text",
+            target="sentiment",
+            model_name="distilbert-base-uncased"
+        )
+        
+        # Custom transformer
+        model = kp.train.transformers(
+            data,
+            text_column="description", 
+            target="category",
+            model_name="google-bert/bert-base-cased",
+            epochs=5,
+            learning_rate=1e-5
+        )
+    """
+    
+    # Dynamic import of transformers
+    try:
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager(".")
+        transformers = lib_manager.dynamic_import("transformers")
+        datasets = lib_manager.dynamic_import("datasets")
+        torch = lib_manager.dynamic_import("torch")
+    except Exception as e:
+        raise ModelTrainingError(
+            "Transformers not available",
+            suggestion="Install with: kepler libs template --template generative_ai && kepler libs install"
+        )
+    
+    logger = get_logger(__name__)
+    logger.info(f"Fine-tuning transformer: {model_name}")
+    
+    # Prepare data
+    texts = data[text_column].astype(str).tolist()
+    labels = data[target].tolist()
+    
+    # Auto-detect task type
+    if task_type == "auto":
+        unique_labels = data[target].nunique()
+        if unique_labels <= 20:
+            task_type = "classification"
+            logger.info(f"Auto-detected: classification ({unique_labels} classes)")
+        else:
+            task_type = "regression"
+            logger.info(f"Auto-detected: regression")
+    
+    # Load tokenizer and model
+    tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+    
+    if task_type == "classification":
+        num_labels = data[target].nunique()
+        model = transformers.AutoModelForSequenceClassification.from_pretrained(
+            model_name, 
+            num_labels=num_labels
+        )
+    else:
+        model = transformers.AutoModelForSequenceClassification.from_pretrained(
+            model_name,
+            num_labels=1
+        )
+    
+    # Tokenize data
+    logger.info(f"Tokenizing {len(texts)} text samples...")
+    encodings = tokenizer(
+        texts,
+        truncation=True,
+        padding=True,
+        max_length=max_length,
+        return_tensors="pt"
+    )
+    
+    # Encode labels
+    if task_type == "classification":
+        if data[target].dtype in ['object', 'category']:
+            le = LabelEncoder()
+            encoded_labels = le.fit_transform(labels)
+        else:
+            encoded_labels = labels
+    else:
+        encoded_labels = labels
+    
+    # Create dataset
+    class TextDataset(torch.utils.data.Dataset):
+        def __init__(self, encodings, labels):
+            self.encodings = encodings
+            self.labels = labels
+        
+        def __getitem__(self, idx):
+            item = {key: val[idx] for key, val in self.encodings.items()}
+            item['labels'] = torch.tensor(self.labels[idx], dtype=torch.long if task_type == "classification" else torch.float)
+            return item
+        
+        def __len__(self):
+            return len(self.labels)
+    
+    # Split data
+    from sklearn.model_selection import train_test_split
+    train_texts, val_texts, train_labels, val_labels = train_test_split(
+        texts, encoded_labels, test_size=0.2, random_state=42
+    )
+    
+    # Tokenize split data
+    train_encodings = tokenizer(train_texts, truncation=True, padding=True, max_length=max_length, return_tensors="pt")
+    val_encodings = tokenizer(val_texts, truncation=True, padding=True, max_length=max_length, return_tensors="pt")
+    
+    # Create datasets
+    train_dataset = TextDataset(train_encodings, train_labels)
+    val_dataset = TextDataset(val_encodings, val_labels)
+    
+    # Training arguments
+    training_args = transformers.TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=epochs,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        warmup_steps=500,
+        weight_decay=0.01,
+        logging_dir='./logs',
+        logging_steps=10,
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        learning_rate=learning_rate
+    )
+    
+    # Create trainer
+    trainer = transformers.Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=val_dataset,
+    )
+    
+    # Train model
+    logger.info(f"Training transformer for {epochs} epochs...")
+    trainer.train()
+    
+    # Evaluate
+    eval_results = trainer.evaluate()
+    performance = {
+        'eval_loss': eval_results.get('eval_loss', 0),
+        'eval_accuracy': eval_results.get('eval_accuracy', 0)
+    }
+    
+    logger.info(f"Transformer Training Results:")
+    logger.info(f"  Eval Loss: {performance['eval_loss']:.4f}")
+    logger.info(f"  Eval Accuracy: {performance['eval_accuracy']:.4f}")
+    
+    # Create Kepler model wrapper
+    kepler_model = KeplerModel(
+        model=model,
+        model_type=task_type,
+        target_column=target,
+        feature_columns=[text_column]
+    )
+    kepler_model.trained = True
+    kepler_model.performance = performance
+    kepler_model.tokenizer = tokenizer  # Store tokenizer for inference
+    
+    return kepler_model
+
+
+def langchain(
+    data: pd.DataFrame,
+    **kwargs
+) -> KeplerModel:
+    """
+    Create LangChain AI agent or workflow.
+    
+    Note: LangChain integration is planned for future implementation.
+    For now, use transformers for text processing.
+    
+    Args:
+        data: DataFrame with text data
+        **kwargs: LangChain parameters
+        
+    Returns:
+        KeplerModel: LangChain agent/workflow
+        
+    Example:
+        import kepler as kp
+        
+        # This will be available in future versions
+        agent = kp.train.langchain(data, agent_type="conversational")
+    """
+    raise ModelTrainingError(
+        "LangChain trainer not yet implemented",
+        suggestion="Use transformers for text tasks: kp.train.transformers(data, text_column, target)"
+    )
+
+
+def openai_finetune(
+    data: pd.DataFrame,
+    **kwargs
+) -> KeplerModel:
+    """
+    Fine-tune OpenAI GPT model.
+    
+    Note: OpenAI fine-tuning integration is planned for future implementation.
+    For now, use transformers for text processing.
+    
+    Args:
+        data: DataFrame with training data
+        **kwargs: OpenAI parameters
+        
+    Returns:
+        KeplerModel: Fine-tuned OpenAI model
+        
+    Example:
+        import kepler as kp
+        
+        # This will be available in future versions
+        model = kp.train.openai_finetune(data, model="gpt-3.5-turbo")
+    """
+    raise ModelTrainingError(
+        "OpenAI fine-tuning not yet implemented",
+        suggestion="Use transformers for text tasks: kp.train.transformers(data, text_column, target)"
+    )
