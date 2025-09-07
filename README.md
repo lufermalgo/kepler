@@ -390,12 +390,12 @@ Para detalles completos de validación, ver **[Estado de Validación](./docs/VAL
 3. **💾 Sistema de serialización** - Versionado automático de modelos
 4. **📚 Documentar patrones** - Guías de entrenamiento
 
-### 🔮 **Roadmap Multi-Cloud**
+### 🔮 **Roadmap Multi-Platform**
 - **Oct-Nov 2025:** Gestión automática de ecosistemas (kepler env)
 - **Nov-Dec 2025:** Deployment automation (Cloud Run)  
-- **Dec-Jan 2026:** **Azure expansion** (prioridad #1 después de GCP)
-- **Jan-Mar 2026:** AWS support (después de Azure)
-- **Mar-May 2026:** **Edge computing** (Barbara IoT + Splunk Edge Hub)
+- **Dec-Jan 2026:** **Edge computing** (Barbara IoT + Splunk Edge Hub)
+- **Jan-Mar 2026:** **Azure expansion** (después de Edge)
+- **Mar-May 2026:** AWS support (última cloud platform)
 
 ---
 
