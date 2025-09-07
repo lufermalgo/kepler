@@ -60,7 +60,7 @@
   - [x] 1.1 Research and implement unlimited Python library support framework
   - [x] 1.2 Create LibraryManager class for dynamic library loading and dependency management
   - [x] 1.3 Implement support for ANY Python library (PyPI + GitHub + custom + experimental)
-  - [ ] 1.4 Create training wrappers for ML (sklearn, XGBoost, LightGBM, CatBoost)
+  - [x] 1.4 Create training wrappers for ML (sklearn, XGBoost, LightGBM, CatBoost)
   - [ ] 1.5 Create training wrappers for Deep Learning (PyTorch, TensorFlow, Keras, JAX)
   - [ ] 1.6 Create training wrappers for Generative AI (transformers, langchain, openai, anthropic)
   - [ ] 1.7 Implement custom library integration system (local, GitHub, private repos)
