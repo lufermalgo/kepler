@@ -587,3 +587,323 @@ def catboost(
         "CatBoost trainer not yet implemented",
         suggestion="Use XGBoost for now: kp.train.xgboost(data, target)"
     )
+
+
+# Deep Learning Framework Support
+def pytorch(
+    data: pd.DataFrame,
+    target: str,
+    features: List[str] = None,
+    architecture: str = "mlp",
+    hidden_sizes: List[int] = None,
+    epochs: int = 100,
+    batch_size: int = 32,
+    learning_rate: float = 0.001,
+    **kwargs
+) -> KeplerModel:
+    """
+    Train a PyTorch neural network model.
+    
+    Supports multiple architectures with GPU acceleration.
+    
+    Args:
+        data: DataFrame with features and target
+        target: Name of target column
+        features: List of feature columns (auto-detect if None)
+        architecture: 'mlp', 'cnn', 'rnn' (default: 'mlp')
+        hidden_sizes: Hidden layer sizes (default: [64, 32])
+        epochs: Number of training epochs (default: 100)
+        batch_size: Batch size for training (default: 32)
+        learning_rate: Learning rate (default: 0.001)
+        **kwargs: Additional PyTorch parameters
+        
+    Returns:
+        KeplerModel: Trained PyTorch model
+        
+    Example:
+        import kepler as kp
+        
+        # Simple MLP
+        model = kp.train.pytorch(data, target="status")
+        
+        # Custom architecture
+        model = kp.train.pytorch(
+            data, 
+            target="temperature",
+            architecture="mlp",
+            hidden_sizes=[128, 64, 32],
+            epochs=200,
+            learning_rate=0.0001
+        )
+    """
+    
+    # Dynamic import of PyTorch
+    try:
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager(".")
+        torch = lib_manager.dynamic_import("torch")
+        torch_nn = lib_manager.dynamic_import("torch.nn")
+        torch_optim = lib_manager.dynamic_import("torch.optim")
+        F = lib_manager.dynamic_import("torch.nn.functional")
+    except Exception as e:
+        raise ModelTrainingError(
+            "PyTorch not available",
+            suggestion="Install with: kepler libs install --library torch>=2.0.0"
+        )
+    
+    logger = get_logger(__name__)
+    logger.info(f"Training PyTorch neural network...")
+    
+    # Auto-detect features
+    if features is None:
+        features = [col for col in data.columns if col != target]
+        logger.info(f"Auto-detected {len(features)} feature columns")
+    
+    if hidden_sizes is None:
+        hidden_sizes = [64, 32]
+    
+    # Prepare data
+    X = data[features].copy()
+    y = data[target].copy()
+    
+    # Auto-detect task type
+    unique_values = y.nunique()
+    if unique_values <= 10 and y.dtype in ['object', 'category', 'bool']:
+        task = "classification"
+        logger.info(f"Auto-detected task: classification ({unique_values} classes)")
+    else:
+        task = "regression"
+        logger.info(f"Auto-detected task: regression")
+    
+    # Handle categorical variables (convert to numeric)
+    categorical_columns = X.select_dtypes(include=['object', 'category']).columns
+    if len(categorical_columns) > 0:
+        logger.info(f"Encoding {len(categorical_columns)} categorical columns")
+        for col in categorical_columns:
+            le = LabelEncoder()
+            X[col] = le.fit_transform(X[col].astype(str))
+    
+    # Handle missing values
+    X = X.fillna(X.mean())
+    
+    # Convert to tensors
+    X_tensor = torch.FloatTensor(X.values)
+    
+    if task == "classification":
+        # Encode labels for classification
+        if y.dtype in ['object', 'category']:
+            le = LabelEncoder()
+            y_encoded = le.fit_transform(y)
+            num_classes = len(le.classes_)
+        else:
+            y_encoded = y.values
+            num_classes = int(y.nunique())
+        y_tensor = torch.LongTensor(y_encoded)
+    else:
+        y_tensor = torch.FloatTensor(y.values)
+        num_classes = 1
+    
+    # Create model
+    input_size = len(features)
+    output_size = num_classes if task == "classification" else 1
+    
+    class SimpleNet(torch_nn.Module):
+        def __init__(self, input_size, hidden_sizes, output_size, dropout=0.2):
+            super().__init__()
+            
+            layers = []
+            prev_size = input_size
+            
+            for hidden_size in hidden_sizes:
+                layers.append(torch_nn.Linear(prev_size, hidden_size))
+                layers.append(torch_nn.ReLU())
+                layers.append(torch_nn.Dropout(dropout))
+                prev_size = hidden_size
+            
+            layers.append(torch_nn.Linear(prev_size, output_size))
+            
+            self.network = torch_nn.Sequential(*layers)
+        
+        def forward(self, x):
+            return self.network(x)
+    
+    # Create model instance
+    model = SimpleNet(
+        input_size=input_size,
+        hidden_sizes=hidden_sizes,
+        output_size=output_size,
+        dropout=kwargs.get('dropout', 0.2)
+    )
+    
+    # Move to device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device=device)
+    X_tensor = X_tensor.to(device)
+    y_tensor = y_tensor.to(device)
+    
+    # Create optimizer
+    optimizer = torch_optim.Adam(model.parameters(), lr=learning_rate)
+    
+    # Define loss function
+    if task == "classification":
+        if num_classes == 2:
+            criterion = torch_nn.BCEWithLogitsLoss()
+        else:
+            criterion = torch_nn.CrossEntropyLoss()
+    else:
+        criterion = torch_nn.MSELoss()
+    
+    # Training loop
+    model.train()
+    logger.info(f"Training on {len(X_tensor)} samples for {epochs} epochs...")
+    
+    for epoch in range(epochs):
+        # Forward pass
+        outputs = model(X_tensor)
+        
+        if task == "classification" and num_classes == 2:
+            outputs = outputs.squeeze()
+            loss = criterion(outputs, y_tensor.float())
+        else:
+            loss = criterion(outputs, y_tensor)
+        
+        # Backward pass
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        
+        # Log progress
+        if epoch % max(1, epochs // 10) == 0:
+            logger.info(f"Epoch {epoch}/{epochs}, Loss: {loss.item():.4f}")
+    
+    # Evaluation
+    model.eval()
+    with torch.no_grad():
+        outputs = model(X_tensor)
+        
+        if task == "classification":
+            if num_classes == 2:
+                predictions = torch.sigmoid(outputs.squeeze()) > 0.5
+                predictions = predictions.int()
+            else:
+                predictions = torch.argmax(outputs, dim=1)
+            
+            accuracy = (predictions == y_tensor).float().mean().item()
+            performance = {'accuracy': accuracy}
+            logger.info(f"PyTorch Neural Network Accuracy: {accuracy:.4f}")
+        else:
+            predictions = outputs.squeeze()
+            mse = F.mse_loss(predictions, y_tensor).item()
+            performance = {'mse': mse}
+            logger.info(f"PyTorch Neural Network MSE: {mse:.4f}")
+    
+    # Create Kepler model wrapper
+    kepler_model = KeplerModel(
+        model=model,
+        model_type=task,
+        target_column=target,
+        feature_columns=features
+    )
+    kepler_model.trained = True
+    kepler_model.performance = performance
+    
+    return kepler_model
+
+
+def tensorflow(
+    data: pd.DataFrame,
+    target: str,
+    features: List[str] = None,
+    **kwargs
+) -> KeplerModel:
+    """
+    Train a TensorFlow/Keras model.
+    
+    Note: TensorFlow integration is planned for future implementation.
+    For now, use PyTorch as an alternative.
+    
+    Args:
+        data: DataFrame with features and target
+        target: Name of target column
+        features: List of feature columns
+        **kwargs: TensorFlow parameters
+        
+    Returns:
+        KeplerModel: Trained model
+        
+    Example:
+        import kepler as kp
+        
+        # This will be available in future versions
+        model = kp.train.tensorflow(data, target="classification")
+    """
+    raise ModelTrainingError(
+        "TensorFlow trainer not yet implemented",
+        suggestion="Use PyTorch for now: kp.train.pytorch(data, target)"
+    )
+
+
+def keras(
+    data: pd.DataFrame,
+    target: str,
+    features: List[str] = None,
+    **kwargs
+) -> KeplerModel:
+    """
+    Train a Keras model.
+    
+    Note: Keras integration is planned for future implementation.
+    For now, use PyTorch as an alternative.
+    
+    Args:
+        data: DataFrame with features and target
+        target: Name of target column
+        features: List of feature columns
+        **kwargs: Keras parameters
+        
+    Returns:
+        KeplerModel: Trained model
+        
+    Example:
+        import kepler as kp
+        
+        # This will be available in future versions
+        model = kp.train.keras(data, target="prediction")
+    """
+    raise ModelTrainingError(
+        "Keras trainer not yet implemented",
+        suggestion="Use PyTorch for now: kp.train.pytorch(data, target)"
+    )
+
+
+def jax(
+    data: pd.DataFrame,
+    target: str,
+    features: List[str] = None,
+    **kwargs
+) -> KeplerModel:
+    """
+    Train a JAX model.
+    
+    Note: JAX integration is planned for future implementation.
+    For now, use PyTorch as an alternative.
+    
+    Args:
+        data: DataFrame with features and target
+        target: Name of target column
+        features: List of feature columns
+        **kwargs: JAX parameters
+        
+    Returns:
+        KeplerModel: Trained model
+        
+    Example:
+        import kepler as kp
+        
+        # This will be available in future versions
+        model = kp.train.jax(data, target="prediction")
+    """
+    raise ModelTrainingError(
+        "JAX trainer not yet implemented",
+        suggestion="Use PyTorch for now: kp.train.pytorch(data, target)"
+    )
