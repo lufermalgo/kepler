@@ -360,11 +360,14 @@ kepler train quality_data.csv --target quality_ok --test-size 0.3
 
 ## 🔧 Estado del Proyecto
 
-**Versión Actual: 0.1.0**
+**Versión Actual: 0.1.0**  
+**Fecha de actualización: 6 de Septiembre de 2025**  
+**Fase actual: Core ML Training (Septiembre-Octubre 2025)**
 
 Ver detalles completos del estado en:
 - **[Estado de Validación](./docs/VALIDATION_STATUS.md)** - Funcionalidades probadas con datos reales
-- **[Roadmap Completo](./docs/SDK_CLI_GUIDE.md#evolución-y-roadmap)** - Evolución por sprints
+- **[PRD Fundacional](./tasks/prd-kepler-ecosystem.md)** - Visión completa y roadmap
+- **[Roadmap Completo](./docs/SDK_GUIDE.md#evolución-y-roadmap)** - Evolución por sprints
 
 ## ✅ **Status de Validación**
 
@@ -372,10 +375,16 @@ Ver detalles completos del estado en:
 
 Para detalles completos de validación, ver **[Estado de Validación](./docs/VALIDATION_STATUS.md)**
 
-### 🎯 **Próximos Pasos**
-1. **🤖 Entrenamiento de Modelos** - Usando los datos validados
-2. **☁️ Deployment a GCP Cloud Run** - Infraestructura configurada  
-3. **🔄 Predicciones en Producción** - Escritura de resultados a Splunk
+### 🎯 **Fase Actual: Core ML Training (Sept-Oct 2025)**
+1. **🤖 Implementar kepler.train module** - sklearn + XGBoost básico (EN PROGRESO)
+2. **📊 Validar primer modelo end-to-end** - Con datos reales (2,890 eventos)
+3. **💾 Sistema de serialización** - Versionado automático de modelos
+4. **📚 Documentar patrones** - Guías de entrenamiento
+
+### 🔮 **Siguientes Fases**
+- **Oct-Nov 2025:** Gestión automática de ecosistemas (kepler env)
+- **Nov-Dec 2025:** Deployment automation (Cloud Run)  
+- **Dec-Jan 2026:** Framework expansion (PyTorch, TensorFlow)
 
 ---
 
