@@ -1398,11 +1398,11 @@ Antes de integrar cualquier tecnología, se DEBE completar:
 ### Roadmap de Implementación
 
 #### M1 (Septiembre-Octubre 2025): Core AI Training Ecosystem ✅ 67% COMPLETADO
-1. ✅ Unlimited Python library support (Task 1.1-1.3)
-2. ✅ AI framework wrappers: ML + DL + GenAI (Task 1.4-1.6)
-3. ✅ Custom library integration (Task 1.7)
-4. ✅ Unified training API (Task 1.8-1.10)
-5. ⏳ AutoML basic capabilities (Task 1.11-1.15) - EN PROGRESO
+1. ✅ Unlimited Python library support (Task 1.1-1.3) - COMPLETADO
+2. ✅ AI framework wrappers: ML + DL + GenAI (Task 1.4-1.6) - COMPLETADO
+3. ✅ Custom library integration (Task 1.7) - COMPLETADO
+4. ✅ Unified training API (Task 1.8-1.10) - COMPLETADO
+5. ⏳ AutoML basic capabilities (Task 1.11-1.15) - PRÓXIMO FOCO
 
 #### M2 (Octubre-Noviembre 2025): MLOps Versioning and Reproducibility
 1. Data versioning con DVC/Pachyderm (Task 5.1-5.2)
