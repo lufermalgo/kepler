@@ -1,7 +1,7 @@
 # Kepler Framework - Guía CLI (Command Line Interface)
 
 > **Versión del Framework:** 0.1.0  
-> **Última actualización:** Diciembre 2024  
+> **Última actualización:** Agosto 2025  
 > **Estado:** Comandos Core Validados  
 > **Audiencia:** DevOps, Ingenieros, Automatización
 

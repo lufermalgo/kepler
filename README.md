@@ -3,11 +3,28 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-🚀 **Simple framework for industrial machine learning with Splunk and Google Cloud.**
+🚀 **Ecosystem framework that eliminates barriers between industrial data and free experimentation with any data science library.**
 
 ## 🎯 What is Kepler?
 
-Kepler is a pragmatic framework that connects industrial data from Splunk to machine learning models. **Currently validated and working:**
+**Kepler** is an ML ecosystem framework designed to **maximize experimentation possibilities** for analysts and data scientists, allowing use of different ML frameworks and libraries with easy transition to production. 
+
+### The Problem We Solve
+
+Current Splunk ML/Deep Learning Toolkit limitations:
+- **Restricted experimentation** with basic tools and limited containers
+- **Complex deployment** via ONNX packaging  
+- **Limited library access** in containerized environments
+
+### Our Solution: Zero Friction ML Environment
+
+Kepler provides **complete freedom** for data scientists to:
+1. **Experiment without restrictions** - Any Python library (PyTorch, TensorFlow, sklearn, pandas, etc.)
+2. **Automatic ecosystem management** - Dev/production environments configured automatically  
+3. **Frictionless deployment** - From notebook to production with one command
+4. **Modular multi-cloud architecture** - No vendor lock-in, extensible via plugins
+
+**Currently validated and working:**
 
 ### ✅ **PRODUCTION READY FEATURES:**
 - 📊 **Extract data from Splunk** with custom SPL queries (events & metrics)

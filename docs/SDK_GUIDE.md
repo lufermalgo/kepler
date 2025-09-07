@@ -1,7 +1,7 @@
 # Kepler Framework - Guía SDK (Python API)
 
 > **Versión del Framework:** 0.1.0  
-> **Última actualización:** Diciembre 2024  
+> **Última actualización:** Agosto 2025  
 > **Estado:** API Core Validada  
 > **Audiencia:** Científicos de Datos, Analistas, Desarrolladores Python
 

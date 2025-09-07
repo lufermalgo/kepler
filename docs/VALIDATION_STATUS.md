@@ -1,6 +1,6 @@
 # Kepler Framework - Estado de Validación Técnica
 
-> **Fecha de actualización:** Diciembre 2024  
+> **Fecha de actualización:** Agosto 2025  
 > **Estado general:** FUNCIONES CORE VALIDADAS ✅
 
 ## 📊 Resumen Ejecutivo
