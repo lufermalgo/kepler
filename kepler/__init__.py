@@ -26,6 +26,9 @@ from kepler import libs
 # NEW: Unified training API (Task 1.8)
 from kepler import train_unified
 
+# NEW: AutoML capabilities (Task 1.11)
+from kepler import automl
+
 # Internal API (for advanced users) - moved to avoid circular imports
 # from kepler.core.config import KeplerConfig, load_config
 # from kepler.core.project import KeplerProject
@@ -34,6 +37,7 @@ __all__ = [
     "data",          # Simple data extraction: kp.data.from_splunk()
     "train",         # Simple training: kp.train.random_forest()
     "train_unified", # Unified training API: kp.train_unified.train()
+    "automl",        # AutoML capabilities: kp.automl.auto_train(), kp.automl.select_algorithm()
     "results",       # Simple results: kp.results.to_splunk()
     "libs",          # Unlimited library support: kp.libs.install(), kp.libs.template()
     "__version__",
