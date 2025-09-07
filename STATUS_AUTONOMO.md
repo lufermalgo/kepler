@@ -22,7 +22,13 @@
 - ✅ **15/15 subtareas completadas**
 - ✅ **Core AI Training Ecosystem** implementado completamente
 - ✅ **AutoML capabilities** con constraints industriales
-- **PRÓXIMO MILESTONE**: M2 - MLOps Versioning and Reproducibility
+
+### **⏳ MILESTONE M2 EN PROGRESO:**
+- ✅ **Task 5.1**: Data versioning with DVC integration + fallback
+- ✅ **Task 5.2**: Feature engineering pipeline versioning  
+- ✅ **Task 5.3**: MLflow experiment tracking integration
+- **PROGRESO M2**: 3/7 tasks completadas (43%)
+- **PRÓXIMO**: Task 5.4 - Unified versioning system (Git + DVC + MLflow)
 
 ### **📊 MÉTRICAS:**
 - **Tests**: 85+ unitarios y de integración (todos pasando)

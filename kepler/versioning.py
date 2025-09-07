@@ -940,3 +940,465 @@ def _validate_data_pipeline_compatibility(data: pd.DataFrame, pipeline: Dict[str
         issues.append(f"Validation error: {e}")
     
     return issues
+
+
+def start_experiment(experiment_name: str, 
+                    run_name: str = None,
+                    tags: Dict[str, str] = None,
+                    description: str = None) -> str:
+    """
+    Start a new MLflow experiment run
+    
+    Args:
+        experiment_name: Name of the experiment
+        run_name: Optional run name (auto-generated if None)
+        tags: Optional tags for the run
+        description: Optional run description
+        
+    Returns:
+        Run ID string
+        
+    Example:
+        >>> # Start new experiment
+        >>> run_id = kp.versioning.start_experiment(
+        ...     "sensor-failure-prediction",
+        ...     run_name="xgboost-baseline",
+        ...     tags={"model_type": "classification", "data_version": "v001"},
+        ...     description="Baseline XGBoost model for sensor failure prediction"
+        ... )
+        >>> print(f"Experiment started: {run_id}")
+    """
+    logger = get_logger(__name__)
+    logger.info(f"Starting MLflow experiment: {experiment_name}")
+    
+    try:
+        # Try to import MLflow
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager()
+        mlflow = lib_manager.dynamic_import('mlflow')
+        
+        if mlflow is None:
+            # MLflow not available - use simple experiment tracking
+            logger.warning("MLflow not available, using simple experiment tracking")
+            return _start_simple_experiment(experiment_name, run_name, tags, description)
+        
+        # Use MLflow for experiment tracking
+        return _start_mlflow_experiment(mlflow, experiment_name, run_name, tags, description)
+        
+    except Exception as e:
+        logger.warning(f"MLflow experiment start failed: {e}, using simple tracking")
+        return _start_simple_experiment(experiment_name, run_name, tags, description)
+
+
+def _start_mlflow_experiment(mlflow, experiment_name: str, run_name: str = None,
+                           tags: Dict[str, str] = None, description: str = None) -> str:
+    """Start MLflow experiment"""
+    try:
+        # Set or create experiment
+        mlflow.set_experiment(experiment_name)
+        
+        # Start run
+        run = mlflow.start_run(run_name=run_name, description=description)
+        
+        # Set tags if provided
+        if tags:
+            for key, value in tags.items():
+                mlflow.set_tag(key, value)
+        
+        # Set Kepler metadata
+        mlflow.set_tag("kepler.version", "1.0.0")
+        mlflow.set_tag("kepler.framework", "kepler-ml")
+        
+        run_id = run.info.run_id
+        logger = get_logger(__name__)
+        logger.info(f"MLflow run started: {run_id}")
+        
+        return run_id
+        
+    except Exception as e:
+        raise ModelTrainingError(f"MLflow experiment start failed: {e}")
+
+
+def _start_simple_experiment(experiment_name: str, run_name: str = None,
+                           tags: Dict[str, str] = None, description: str = None) -> str:
+    """Start simple experiment tracking fallback"""
+    logger = get_logger(__name__)
+    
+    # Generate run ID
+    from datetime import datetime
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = f"{experiment_name}_{run_name or 'run'}_{timestamp}"
+    
+    # Store experiment info
+    manager = _get_version_manager()
+    if 'experiments' not in manager.version_history:
+        manager.version_history['experiments'] = {}
+    
+    manager.version_history['experiments'][run_id] = {
+        'experiment_name': experiment_name,
+        'run_name': run_name,
+        'run_id': run_id,
+        'tags': tags or {},
+        'description': description,
+        'started': datetime.now().isoformat(),
+        'status': 'running',
+        'metrics': {},
+        'parameters': {}
+    }
+    
+    manager._save_version_history()
+    
+    logger.info(f"Simple experiment started: {run_id}")
+    return run_id
+
+
+def log_parameters(run_id: str, parameters: Dict[str, Any]):
+    """
+    Log parameters for an experiment run
+    
+    Args:
+        run_id: Experiment run ID
+        parameters: Parameters to log
+        
+    Example:
+        >>> kp.versioning.log_parameters(run_id, {
+        ...     "algorithm": "xgboost",
+        ...     "n_estimators": 100,
+        ...     "max_depth": 6,
+        ...     "learning_rate": 0.1
+        ... })
+    """
+    logger = get_logger(__name__)
+    
+    try:
+        # Try MLflow first
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager()
+        mlflow = lib_manager.dynamic_import('mlflow')
+        
+        if mlflow and hasattr(mlflow, 'active_run') and mlflow.active_run():
+            # Use MLflow
+            for key, value in parameters.items():
+                mlflow.log_param(key, value)
+            logger.debug(f"Parameters logged to MLflow: {list(parameters.keys())}")
+        else:
+            # Use simple tracking
+            _log_simple_parameters(run_id, parameters)
+            
+    except Exception as e:
+        logger.warning(f"Parameter logging failed: {e}")
+        _log_simple_parameters(run_id, parameters)
+
+
+def _log_simple_parameters(run_id: str, parameters: Dict[str, Any]):
+    """Log parameters using simple tracking"""
+    manager = _get_version_manager()
+    
+    if 'experiments' in manager.version_history and run_id in manager.version_history['experiments']:
+        manager.version_history['experiments'][run_id]['parameters'].update(parameters)
+        manager._save_version_history()
+
+
+def log_metrics(run_id: str, metrics: Dict[str, float], step: int = None):
+    """
+    Log metrics for an experiment run
+    
+    Args:
+        run_id: Experiment run ID
+        metrics: Metrics to log
+        step: Optional step number
+        
+    Example:
+        >>> kp.versioning.log_metrics(run_id, {
+        ...     "accuracy": 0.85,
+        ...     "precision": 0.82,
+        ...     "recall": 0.88,
+        ...     "f1_score": 0.85
+        ... })
+    """
+    logger = get_logger(__name__)
+    
+    try:
+        # Try MLflow first
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager()
+        mlflow = lib_manager.dynamic_import('mlflow')
+        
+        if mlflow and hasattr(mlflow, 'active_run') and mlflow.active_run():
+            # Use MLflow
+            for key, value in metrics.items():
+                mlflow.log_metric(key, value, step=step)
+            logger.debug(f"Metrics logged to MLflow: {list(metrics.keys())}")
+        else:
+            # Use simple tracking
+            _log_simple_metrics(run_id, metrics, step)
+            
+    except Exception as e:
+        logger.warning(f"Metric logging failed: {e}")
+        _log_simple_metrics(run_id, metrics, step)
+
+
+def _log_simple_metrics(run_id: str, metrics: Dict[str, float], step: int = None):
+    """Log metrics using simple tracking"""
+    manager = _get_version_manager()
+    
+    if 'experiments' in manager.version_history and run_id in manager.version_history['experiments']:
+        experiment = manager.version_history['experiments'][run_id]
+        
+        for key, value in metrics.items():
+            if key not in experiment['metrics']:
+                experiment['metrics'][key] = []
+            
+            experiment['metrics'][key].append({
+                'value': value,
+                'step': step,
+                'timestamp': datetime.now().isoformat()
+            })
+        
+        manager._save_version_history()
+
+
+def end_experiment(run_id: str, status: str = "FINISHED"):
+    """
+    End an experiment run
+    
+    Args:
+        run_id: Experiment run ID
+        status: Run status ("FINISHED", "FAILED", "KILLED")
+        
+    Example:
+        >>> kp.versioning.end_experiment(run_id, status="FINISHED")
+    """
+    logger = get_logger(__name__)
+    
+    try:
+        # Try MLflow first
+        from kepler.core.library_manager import LibraryManager
+        lib_manager = LibraryManager()
+        mlflow = lib_manager.dynamic_import('mlflow')
+        
+        if mlflow and hasattr(mlflow, 'active_run') and mlflow.active_run():
+            mlflow.end_run(status=status)
+            logger.info(f"MLflow run ended: {run_id}")
+        else:
+            # Use simple tracking
+            _end_simple_experiment(run_id, status)
+            
+    except Exception as e:
+        logger.warning(f"Experiment end failed: {e}")
+        _end_simple_experiment(run_id, status)
+
+
+def _end_simple_experiment(run_id: str, status: str):
+    """End experiment using simple tracking"""
+    manager = _get_version_manager()
+    
+    if 'experiments' in manager.version_history and run_id in manager.version_history['experiments']:
+        manager.version_history['experiments'][run_id]['status'] = status.lower()
+        manager.version_history['experiments'][run_id]['ended'] = datetime.now().isoformat()
+        manager._save_version_history()
+
+
+def list_experiments(experiment_name: str = None) -> List[Dict[str, Any]]:
+    """
+    List experiments, optionally filtered by name
+    
+    Args:
+        experiment_name: Optional experiment name filter
+        
+    Returns:
+        List of experiment information
+        
+    Example:
+        >>> experiments = kp.versioning.list_experiments("sensor-failure-prediction")
+        >>> for exp in experiments:
+        ...     print(f"{exp['run_id']}: {exp['status']} - {exp['best_metric']}")
+    """
+    try:
+        manager = _get_version_manager()
+        experiments = manager.version_history.get('experiments', {})
+        
+        result = []
+        for run_id, exp_data in experiments.items():
+            if experiment_name is None or exp_data.get('experiment_name') == experiment_name:
+                # Calculate best metric if available
+                best_metric = None
+                if exp_data.get('metrics'):
+                    # Get latest value of first metric
+                    first_metric = list(exp_data['metrics'].keys())[0]
+                    metric_history = exp_data['metrics'][first_metric]
+                    if metric_history:
+                        best_metric = metric_history[-1]['value']
+                
+                result.append({
+                    'run_id': run_id,
+                    'experiment_name': exp_data.get('experiment_name'),
+                    'run_name': exp_data.get('run_name'),
+                    'status': exp_data.get('status'),
+                    'started': exp_data.get('started'),
+                    'ended': exp_data.get('ended'),
+                    'tags': exp_data.get('tags', {}),
+                    'parameters': exp_data.get('parameters', {}),
+                    'best_metric': best_metric
+                })
+        
+        # Sort by start time (newest first)
+        return sorted(result, key=lambda x: x.get('started', ''), reverse=True)
+        
+    except Exception as e:
+        raise ModelTrainingError(
+            f"Failed to list experiments: {e}",
+            suggestion="Check experiment tracking is initialized"
+        )
+
+
+def get_experiment_info(run_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Get detailed information about a specific experiment run
+    
+    Args:
+        run_id: Experiment run ID
+        
+    Returns:
+        Experiment information or None if not found
+        
+    Example:
+        >>> info = kp.versioning.get_experiment_info(run_id)
+        >>> if info:
+        ...     print(f"Experiment: {info['experiment_name']}")
+        ...     print(f"Parameters: {info['parameters']}")
+        ...     print(f"Metrics: {info['latest_metrics']}")
+    """
+    try:
+        manager = _get_version_manager()
+        experiments = manager.version_history.get('experiments', {})
+        exp_data = experiments.get(run_id)
+        
+        if exp_data:
+            # Process metrics to get latest values
+            latest_metrics = {}
+            for metric_name, metric_history in exp_data.get('metrics', {}).items():
+                if metric_history:
+                    latest_metrics[metric_name] = metric_history[-1]['value']
+            
+            return {
+                'run_id': run_id,
+                'experiment_name': exp_data.get('experiment_name'),
+                'run_name': exp_data.get('run_name'),
+                'status': exp_data.get('status'),
+                'started': exp_data.get('started'),
+                'ended': exp_data.get('ended'),
+                'description': exp_data.get('description'),
+                'tags': exp_data.get('tags', {}),
+                'parameters': exp_data.get('parameters', {}),
+                'latest_metrics': latest_metrics,
+                'metric_history': exp_data.get('metrics', {})
+            }
+        
+        return None
+        
+    except Exception as e:
+        raise ModelTrainingError(
+            f"Failed to get experiment info: {e}",
+            suggestion="Check run ID is correct"
+        )
+
+
+def track_model_training(data: pd.DataFrame, target: str, algorithm: str,
+                        experiment_name: str = "kepler-training",
+                        **training_kwargs) -> Dict[str, Any]:
+    """
+    Track complete model training with automatic experiment logging
+    
+    Args:
+        data: Training data
+        target: Target column
+        algorithm: Algorithm to use
+        experiment_name: MLflow experiment name
+        **training_kwargs: Additional training parameters
+        
+    Returns:
+        Training results with experiment tracking info
+        
+    Example:
+        >>> # Track model training automatically
+        >>> result = kp.versioning.track_model_training(
+        ...     sensor_data, 
+        ...     target="failure",
+        ...     algorithm="xgboost",
+        ...     experiment_name="predictive-maintenance",
+        ...     n_estimators=100,
+        ...     max_depth=6
+        ... )
+        >>> 
+        >>> print(f"Model trained: {result['algorithm']}")
+        >>> print(f"Performance: {result['performance']}")
+        >>> print(f"MLflow run: {result['run_id']}")
+    """
+    logger = get_logger(__name__)
+    logger.info(f"Starting tracked model training: {algorithm}")
+    
+    try:
+        # Start experiment
+        run_id = start_experiment(
+            experiment_name,
+            run_name=f"{algorithm}-training",
+            tags={
+                "algorithm": algorithm,
+                "target": target,
+                "kepler.tracked": "true"
+            }
+        )
+        
+        # Log training parameters
+        training_params = {
+            "algorithm": algorithm,
+            "target_column": target,
+            "data_shape": f"{data.shape[0]}x{data.shape[1]}",
+            **training_kwargs
+        }
+        log_parameters(run_id, training_params)
+        
+        # Train model
+        from kepler.train_unified import train
+        model = train(data, target=target, algorithm=algorithm, **training_kwargs)
+        
+        # Log performance metrics
+        if hasattr(model, 'performance') and model.performance:
+            log_metrics(run_id, model.performance)
+        
+        # Log model metadata
+        model_metadata = {
+            "framework": getattr(model, 'framework_info', {}).get('framework', algorithm),
+            "model_type": getattr(model, 'model_type', 'unknown'),
+            "training_completed": datetime.now().isoformat()
+        }
+        log_parameters(run_id, model_metadata)
+        
+        # End experiment
+        end_experiment(run_id, "FINISHED")
+        
+        # Prepare results
+        result = {
+            'run_id': run_id,
+            'algorithm': algorithm,
+            'model': model,
+            'performance': getattr(model, 'performance', {}),
+            'experiment_name': experiment_name,
+            'tracking_successful': True
+        }
+        
+        logger.info(f"Model training tracked successfully: {run_id}")
+        return result
+        
+    except Exception as e:
+        # Try to end experiment with failure status
+        try:
+            end_experiment(run_id, "FAILED")
+        except:
+            pass
+        
+        raise ModelTrainingError(
+            f"Tracked model training failed: {e}",
+            suggestion="Check training parameters and MLflow configuration"
+        )
