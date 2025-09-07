@@ -6,112 +6,139 @@
 
 ## Relevant Files
 
-- `kepler/train.py` - Main training module (partially implemented, needs XGBoost integration)
-- `kepler/trainers/sklearn_trainers.py` - Sklearn model trainers (implemented)
-- `kepler/trainers/base.py` - Base trainer interface (implemented)
-- `kepler/data.py` - Data extraction module (implemented)
-- `kepler/results.py` - Results output module (basic implementation)
-- `kepler/core/config.py` - Configuration management (implemented)
+### Core AI Framework Support
+- `kepler/train.py` - Universal AI training module (needs complete AI ecosystem support)
+- `kepler/trainers/base.py` - Base trainer interface (needs AI framework abstraction)
+- `kepler/trainers/ml_trainers.py` - Traditional ML trainers (sklearn, XGBoost, LightGBM, CatBoost)
+- `kepler/trainers/deep_learning_trainers.py` - Deep learning trainers (PyTorch, TensorFlow, Keras, JAX)
+- `kepler/trainers/generative_ai_trainers.py` - Generative AI trainers (transformers, langchain, OpenAI APIs)
+- `kepler/trainers/specialized_trainers.py` - Computer Vision, NLP, Time Series, RL trainers
+
+### Library Management & Dependencies  
+- `kepler/core/library_manager.py` - Unlimited Python library support system
+- `kepler/core/dependency_resolver.py` - Multi-source dependency management
+- `kepler/core/environment_manager.py` - Project isolation and environment management
+
+### Multi-Platform Integration
 - `kepler/connectors/splunk.py` - Splunk connectivity (implemented)
-- `kepler/connectors/hec.py` - HEC writer (implemented)
-- `kepler/cli/main.py` - CLI commands (basic implementation)
-- `kepler/deployers/` - Deployment modules (to be created)
-- `kepler/core/ecosystem_validator.py` - Ecosystem validation (to be created)
-- `kepler/core/documentation_generator.py` - Auto documentation (to be created)
-- `tests/integration/test_ecosystem_validation.py` - Integration tests for validation
-- `tests/unit/test_xgboost_trainer.py` - Unit tests for XGBoost trainer
-- `tests/realistic/test_full_ml_pipeline.py` - End-to-end ML pipeline tests
-- `docs/ECOSYSTEM_VALIDATION_GUIDE.md` - Validation system documentation
-- `docs/AUTO_DOCUMENTATION_GUIDE.md` - Documentation generation guide
+- `kepler/connectors/azure_connector.py` - Azure platform integration
+- `kepler/connectors/barbara_iot_connector.py` - Barbara IoT edge integration
+- `kepler/deployers/multi_cloud_deployer.py` - Cross-cloud deployment orchestration
+- `kepler/deployers/barbara_iot_deployer.py` - Edge deployment to Barbara IoT
+- `kepler/deployers/splunk_edge_hub_deployer.py` - Splunk Edge Hub deployment
+
+### Ecosystem Management
+- `kepler/core/ecosystem_validator.py` - Multi-platform validation system
+- `kepler/core/documentation_generator.py` - Auto documentation for AI projects
+- `kepler/monitoring/hybrid_monitor.py` - Hybrid monitoring (Splunk + dedicated stack)
+
+### Testing & Validation
+- `tests/integration/test_unlimited_libraries.py` - Test ANY Python library integration
+- `tests/integration/test_multi_cloud_deployment.py` - Cross-cloud deployment tests
+- `tests/realistic/test_full_ai_pipeline.py` - End-to-end AI pipeline (not just ML)
+- `tests/unit/test_generative_ai_trainers.py` - Generative AI framework tests
+- `tests/unit/test_deep_learning_trainers.py` - Deep learning framework tests
+
+### Documentation
+- `docs/AI_FRAMEWORKS_GUIDE.md` - Complete AI framework support guide
+- `docs/UNLIMITED_LIBRARIES_GUIDE.md` - Any Python library integration guide
+- `docs/MULTI_CLOUD_DEPLOYMENT_GUIDE.md` - Cross-cloud deployment documentation
 
 ### Notes
 
 - Current codebase has solid foundation: Splunk connectivity, basic training, CLI structure
-- Training module exists but needs XGBoost integration and model serialization improvements
-- Deployment functionality is completely missing and needs to be built from scratch
-- Ecosystem validation system needs to be created as new core functionality
-- Documentation generation system is entirely new and needs full implementation
+- CRITICAL: Tasks based on PRD vision (unlimited AI ecosystem) NOT current limited implementation
+- Training module needs complete expansion: ML → Deep Learning → Generative AI → Computer Vision → NLP
+- Library management system needs to support ANY Python library source (PyPI, GitHub, custom, experimental)
+- Multi-cloud deployment must support any AI framework type (not just traditional ML)
+- Edge computing integration with Barbara IoT and Splunk Edge Hub is completely new
+- Documentation generation must work for any AI project type (ML, DL, GenAI, CV, NLP)
 
 ## Tasks
 
-- [ ] 1.0 Complete Core ML Training Module (Phase 1 - Current Priority)
-  - [ ] 1.1 Research and integrate XGBoost Python library following official documentation
-  - [ ] 1.2 Create XGBoostTrainer class in kepler/trainers/xgboost_trainer.py
-  - [ ] 1.3 Add xgboost() function to kepler/train.py module
-  - [ ] 1.4 Implement hyperparameter optimization for XGBoost models
-  - [ ] 1.5 Add comprehensive unit tests for XGBoost functionality
-  - [ ] 1.6 Update CLI train command to support XGBoost algorithm option
-  - [ ] 1.7 Create integration test with real Splunk data for XGBoost training
-  - [ ] 1.8 Update documentation to include XGBoost training examples
+- [ ] 1.0 Complete AI & Data Science Training Ecosystem (Phase 1 - Current Priority)
+  - [ ] 1.1 Research and implement unlimited Python library support framework
+  - [ ] 1.2 Create LibraryManager class for dynamic library loading and dependency management
+  - [ ] 1.3 Implement support for ANY Python library (PyPI + GitHub + custom + experimental)
+  - [ ] 1.4 Create training wrappers for ML (sklearn, XGBoost, LightGBM, CatBoost)
+  - [ ] 1.5 Create training wrappers for Deep Learning (PyTorch, TensorFlow, Keras, JAX)
+  - [ ] 1.6 Create training wrappers for Generative AI (transformers, langchain, openai, anthropic)
+  - [ ] 1.7 Implement custom library integration system (local, GitHub, private repos)
+  - [ ] 1.8 Create unified training API that works with ANY framework
+  - [ ] 1.9 Add comprehensive testing with multiple AI framework types
+  - [ ] 1.10 Update CLI to support unlimited library ecosystem
 
-- [ ] 2.0 Implement XGBoost Integration
-  - [ ] 2.1 Research XGBoost official documentation and best practices
-  - [ ] 2.2 Design XGBoost parameter configuration schema
-  - [ ] 2.3 Implement XGBoost classifier and regressor support
-  - [ ] 2.4 Add XGBoost-specific evaluation metrics (feature importance, etc.)
-  - [ ] 2.5 Create XGBoost model serialization with metadata
-  - [ ] 2.6 Implement cross-validation support for XGBoost
-  - [ ] 2.7 Add GPU acceleration support for XGBoost (optional)
-  - [ ] 2.8 Create performance benchmarks vs sklearn models
+- [ ] 2.0 Implement Deep Learning Framework Support
+  - [ ] 2.1 Research PyTorch official documentation and deployment patterns
+  - [ ] 2.2 Research TensorFlow/Keras official documentation and best practices
+  - [ ] 2.3 Create DeepLearningTrainer base class for neural networks
+  - [ ] 2.4 Implement PyTorch model training wrapper with GPU support
+  - [ ] 2.5 Implement TensorFlow/Keras model training wrapper
+  - [ ] 2.6 Add neural network architecture templates (MLP, CNN, RNN, LSTM)
+  - [ ] 2.7 Implement automatic model optimization and pruning
+  - [ ] 2.8 Create deep learning model serialization and versioning
+  - [ ] 2.9 Add distributed training support for large models
+  - [ ] 2.10 Create integration tests with computer vision and NLP datasets
 
-- [ ] 3.0 Enhance Model Serialization and Versioning System
-  - [ ] 3.1 Design model versioning schema with semantic versioning
-  - [ ] 3.2 Create ModelRegistry class for local model storage
-  - [ ] 3.3 Implement model metadata tracking (training data, features, performance)
-  - [ ] 3.4 Add model comparison functionality between versions
-  - [ ] 3.5 Create model export/import functionality for different formats
-  - [ ] 3.6 Implement model rollback capabilities
-  - [ ] 3.7 Add model validation and integrity checks
-  - [ ] 3.8 Create CLI commands for model management (list, compare, rollback)
+- [ ] 3.0 Implement Generative AI Framework Support
+  - [ ] 3.1 Research Hugging Face Transformers documentation and model hub integration
+  - [ ] 3.2 Research LangChain documentation for AI agent and chain development
+  - [ ] 3.3 Create GenerativeAITrainer class for LLMs and generative models
+  - [ ] 3.4 Implement Hugging Face model loading and fine-tuning support
+  - [ ] 3.5 Implement LangChain integration for AI agents and workflows
+  - [ ] 3.6 Add support for OpenAI, Anthropic, Google Gemini APIs
+  - [ ] 3.7 Create text generation, summarization, and analysis workflows
+  - [ ] 3.8 Implement image generation support (Stable Diffusion, DALL-E)
+  - [ ] 3.9 Add conversational AI and chatbot development support
+  - [ ] 3.10 Create generative AI model deployment and serving infrastructure
 
-- [ ] 4.0 Create Ecosystem Validation System
-  - [ ] 4.1 Design validation architecture for multi-platform support
-  - [ ] 4.2 Create kepler/core/ecosystem_validator.py module
-  - [ ] 4.3 Implement Splunk connectivity validation with detailed error reporting
-  - [ ] 4.4 Implement GCP authentication and service validation
-  - [ ] 4.5 Create Barbara IoT connectivity validation (research Barbara IoT SDK first)
-  - [ ] 4.6 Implement secure credential management with AES-256 encryption
-  - [ ] 4.7 Create kepler validate ecosystem CLI command
-  - [ ] 4.8 Implement kepler setup <platform> guided configuration commands
-  - [ ] 4.9 Create kepler diagnose intelligent troubleshooting system
-  - [ ] 4.10 Add validation integration tests with real platforms
+- [ ] 4.0 Implement Computer Vision and NLP Specialized Support
+  - [ ] 4.1 Research OpenCV documentation and computer vision best practices
+  - [ ] 4.2 Research spaCy and NLTK documentation for NLP pipeline development
+  - [ ] 4.3 Create ComputerVisionTrainer class for image analysis workflows
+  - [ ] 4.4 Implement OpenCV integration for image preprocessing and analysis
+  - [ ] 4.5 Create NLPTrainer class for text analysis and processing workflows
+  - [ ] 4.6 Implement spaCy integration for advanced NLP tasks
+  - [ ] 4.7 Add support for image classification, object detection, and segmentation
+  - [ ] 4.8 Implement text classification, sentiment analysis, and entity recognition
+  - [ ] 4.9 Create specialized data preprocessing for vision and text data
+  - [ ] 4.10 Add integration with computer vision and NLP model serving
 
-- [ ] 5.0 Implement GCP Cloud Run Deployment Module
-  - [ ] 5.1 Research Google Cloud Run Python SDK and deployment patterns
-  - [ ] 5.2 Create kepler/deployers/cloud_run_deployer.py module
-  - [ ] 5.3 Implement automatic Dockerfile generation for trained models
-  - [ ] 5.4 Create FastAPI wrapper generation for model serving
-  - [ ] 5.5 Implement Cloud Run service deployment automation
-  - [ ] 5.6 Add environment management (development/staging/production)
-  - [ ] 5.7 Implement auto-scaling configuration for deployed models
-  - [ ] 5.8 Create kepler deploy command for CLI
-  - [ ] 5.9 Add deployment monitoring and health checks
-  - [ ] 5.10 Implement automatic result writing back to Splunk HEC
+- [ ] 5.0 Create Unlimited Library Dependency Management System
+  - [ ] 5.1 Design architecture for supporting ANY Python library source
+  - [ ] 5.2 Create kepler/core/library_manager.py for dynamic library management
+  - [ ] 5.3 Implement PyPI library installation and management
+  - [ ] 5.4 Implement GitHub/GitLab repository library installation (git+https://)
+  - [ ] 5.5 Implement private repository support with SSH authentication
+  - [ ] 5.6 Create local custom library support (-e ./custom-libs/)
+  - [ ] 5.7 Implement wheel/tar file installation for compiled libraries
+  - [ ] 5.8 Create environment isolation per project (venv, conda, docker)
+  - [ ] 5.9 Implement dependency conflict resolution and validation
+  - [ ] 5.10 Add CLI commands for library management (kepler libs install, update, list)
 
-- [ ] 6.0 Build Automatic Documentation Generation System
-  - [ ] 6.1 Design documentation generation architecture
-  - [ ] 6.2 Create kepler/core/documentation_generator.py module
-  - [ ] 6.3 Implement project analysis and metadata extraction
-  - [ ] 6.4 Create industry-specific documentation templates (Manufacturing, Financial, Healthcare, Retail)
-  - [ ] 6.5 Implement PDF export functionality with professional formatting
-  - [ ] 6.6 Create Notion API integration for workspace export
-  - [ ] 6.7 Implement Confluence API integration for documentation publishing
-  - [ ] 6.8 Add interactive HTML dashboard generation
-  - [ ] 6.9 Create kepler docs generate CLI command
-  - [ ] 6.10 Implement continuous documentation updates during development
-  - [ ] 6.11 Add optional AI-powered insights generation (OpenAI/Claude integration)
+- [ ] 6.0 Create Ecosystem Validation and Platform Management System
+  - [ ] 6.1 Design validation architecture for multi-platform support (Splunk, GCP, Azure, AWS, Barbara IoT)
+  - [ ] 6.2 Create kepler/core/ecosystem_validator.py module
+  - [ ] 6.3 Implement Splunk connectivity validation with detailed error reporting
+  - [ ] 6.4 Implement GCP authentication and service validation
+  - [ ] 6.5 Create Barbara IoT connectivity validation (research Barbara IoT SDK first)
+  - [ ] 6.6 Implement secure credential management with AES-256 encryption
+  - [ ] 6.7 Create kepler validate ecosystem CLI command
+  - [ ] 6.8 Implement kepler setup <platform> guided configuration commands
+  - [ ] 6.9 Create kepler diagnose intelligent troubleshooting system
+  - [ ] 6.10 Add validation integration tests with real platforms
 
-- [ ] 7.0 Implement Monitoring and Observability Infrastructure
-  - [ ] 7.1 Research Prometheus, Grafana, and InfluxDB integration patterns
-  - [ ] 7.2 Design hybrid monitoring strategy (Splunk for business data, dedicated stack for telemetry)
-  - [ ] 7.3 Create kepler/monitoring/ module structure
-  - [ ] 7.4 Implement Prometheus metrics collection integration
-  - [ ] 7.5 Create Grafana dashboard automation via API
-  - [ ] 7.6 Implement InfluxDB integration for system metrics
-  - [ ] 7.7 Create automatic routing system (business data → Splunk, telemetry → dedicated stack)
-  - [ ] 7.8 Implement distributed tracing with Jaeger integration
-  - [ ] 7.9 Create monitoring dashboard generation commands
-  - [ ] 7.10 Add alerting and notification system integration
+- [ ] 7.0 Implement Multi-Cloud Deployment Automation (GCP, Azure, AWS)
+  - [ ] 7.1 Research Google Cloud Run Python SDK and deployment patterns
+  - [ ] 7.2 Research Azure SDK for Python and Azure ML deployment patterns  
+  - [ ] 7.3 Create kepler/deployers/multi_cloud_deployer.py module
+  - [ ] 7.4 Implement GCP Cloud Run deployment for ANY AI model type
+  - [ ] 7.5 Implement Azure Functions deployment for lightweight models
+  - [ ] 7.6 Implement Azure ML deployment for complex AI workflows
+  - [ ] 7.7 Create automatic Dockerfile generation for any AI framework
+  - [ ] 7.8 Implement FastAPI wrapper generation for any model type
+  - [ ] 7.9 Add cross-cloud deployment orchestration and management
+  - [ ] 7.10 Create unified deployment CLI commands (kepler deploy --cloud gcp|azure|aws)
 
 - [ ] 8.0 Create Edge Computing Support (Barbara IoT + Splunk Edge Hub)
   - [ ] 8.1 Research Barbara IoT SDK documentation and deployment patterns
@@ -125,26 +152,27 @@
   - [ ] 8.9 Add edge deployment CLI commands (kepler deploy --target barbara-iot)
   - [ ] 8.10 Create edge monitoring and health check systems
 
-- [ ] 9.0 Add Azure Cloud Platform Support
-  - [ ] 9.1 Research Azure SDK for Python and Azure ML deployment patterns
-  - [ ] 9.2 Create kepler/connectors/azure_connector.py module
-  - [ ] 9.3 Implement Azure Blob Storage data source integration
-  - [ ] 9.4 Create Azure Functions deployment support
-  - [ ] 9.5 Implement Azure ML Compute integration for model training
-  - [ ] 9.6 Add Azure Container Apps deployment option
-  - [ ] 9.7 Implement Azure Monitor integration for observability
-  - [ ] 9.8 Create Azure-specific configuration management
-  - [ ] 9.9 Add Azure deployment CLI commands
-  - [ ] 9.10 Implement cross-cloud deployment orchestration (GCP + Azure)
+- [ ] 9.0 Build Automatic Documentation Generation System
+  - [ ] 9.1 Design documentation generation architecture for AI projects
+  - [ ] 9.2 Create kepler/core/documentation_generator.py module
+  - [ ] 9.3 Implement project analysis and metadata extraction for any AI framework
+  - [ ] 9.4 Create industry-specific documentation templates (Manufacturing, Financial, Healthcare, Retail)
+  - [ ] 9.5 Implement PDF export functionality with professional formatting
+  - [ ] 9.6 Create Notion API integration for workspace export
+  - [ ] 9.7 Implement Confluence API integration for documentation publishing
+  - [ ] 9.8 Add interactive HTML dashboard generation for AI projects
+  - [ ] 9.9 Create kepler docs generate CLI command
+  - [ ] 9.10 Implement continuous documentation updates during development
+  - [ ] 9.11 Add optional AI-powered insights generation (OpenAI/Claude integration)
 
-- [ ] 10.0 Implement MLOps Stack Integration (MLflow, FastAPI, Docker)
-  - [ ] 10.1 Research MLflow Python SDK and experiment tracking patterns
-  - [ ] 10.2 Create kepler/mlops/mlflow_integration.py module
-  - [ ] 10.3 Implement automatic experiment tracking for all model training
-  - [ ] 10.4 Create MLflow model registry integration
-  - [ ] 10.5 Implement FastAPI automatic generation for trained models
-  - [ ] 10.6 Create Docker containerization automation for models
-  - [ ] 10.7 Implement model serving orchestration with MLflow
-  - [ ] 10.8 Add experiment comparison and model selection automation
-  - [ ] 10.9 Create MLOps pipeline CLI commands
-  - [ ] 10.10 Implement MLOps monitoring and alerting integration
+- [ ] 10.0 Implement Hybrid Monitoring and Observability System
+  - [ ] 10.1 Research Prometheus, Grafana, InfluxDB, and Elasticsearch integration patterns
+  - [ ] 10.2 Design hybrid monitoring strategy (Splunk for business data, dedicated stack for telemetry)
+  - [ ] 10.3 Create kepler/monitoring/ module structure
+  - [ ] 10.4 Implement Prometheus metrics collection for AI model performance
+  - [ ] 10.5 Create Grafana dashboard automation via API for technical metrics
+  - [ ] 10.6 Implement InfluxDB integration for system and model metrics
+  - [ ] 10.7 Create automatic routing system (business data → Splunk, telemetry → dedicated stack)
+  - [ ] 10.8 Implement Elasticsearch integration for AI model logs and debugging
+  - [ ] 10.9 Create monitoring dashboard generation for any AI framework type
+  - [ ] 10.10 Add alerting and notification system for AI model performance and drift
