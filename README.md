@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-🚀 **Ecosystem framework that eliminates barriers between industrial data and unlimited experimentation with ANY Python library - from PyPI to custom developments.**
+🚀 **Ecosystem framework that eliminates barriers between ANY data source and unlimited experimentation with ANY Python library - from PyPI to custom developments.**
 
 ## 🎯 What is Kepler?
 
@@ -11,12 +11,16 @@
 
 ### The Problem We Solve
 
-Current Splunk ML/Deep Learning Toolkit limitations:
+Current data science platform limitations:
 - **Restricted experimentation** with basic tools and limited containers
-- **Complex deployment** via ONNX packaging  
+- **Complex deployment** requiring specialized DevOps knowledge
 - **Limited library access** in containerized environments
+- **Vendor lock-in** with proprietary platforms
 
-### Our Solution: Zero Friction ML Environment
+### Our Solution: Zero Friction AI & Data Science Environment
+
+**Initial focus:** Splunk data + GCP compute (v0.1-v1.0)  
+**Future expansion:** Any data source + any cloud platform
 
 Kepler provides **complete freedom** for data scientists to:
 1. **Experiment without restrictions** - ANY Python library:

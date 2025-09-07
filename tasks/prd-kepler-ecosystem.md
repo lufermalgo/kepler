@@ -7,11 +7,14 @@
 
 ## 1. Introducción/Overview
 
-**Kepler** es un framework de ecosistema de **Inteligencia Artificial y Ciencia de Datos** diseñado para eliminar completamente las barreras entre datos industriales almacenados en Splunk y la experimentación libre con **cualquier librería Python** - desde PyPI oficial hasta repositorios privados, librerías experimentales, y desarrollos custom. 
+**Kepler** es un framework de ecosistema de **Inteligencia Artificial y Ciencia de Datos** agnóstico a tecnologías, diseñado para eliminar completamente las barreras entre **cualquier fuente de datos** y la experimentación libre con **cualquier librería Python** - desde PyPI oficial hasta repositorios privados, librerías experimentales, y desarrollos custom.
+
+**Versión inicial (v0.1-v1.0):** Splunk como fuente de datos + GCP como plataforma de compute  
+**Roadmap futuro:** AWS, Azure, on-premises, edge computing, BigQuery, PostgreSQL, APIs REST, archivos, etc. 
 
 ### Contexto del Problema
 
-Las organizaciones industriales enfrentan limitaciones críticas con las herramientas actuales:
+Las organizaciones enfrentan limitaciones críticas con las herramientas actuales de ciencia de datos:
 
 - **Splunk ML Toolkit**: Modelos básicos prefigurados, capacidades limitadas
 - **Splunk Deep Learning Toolkit**: Promete TensorFlow/PyTorch en Jupyter, pero presenta:
@@ -214,6 +217,161 @@ kepler env create --ssh-key ~/.ssh/company_key
 # 3. Deployment incluye librería automáticamente
 kepler deploy model --include-private-deps
 ```
+
+## 3.2. Casos de Uso Expandidos - Más Allá de Datos Industriales
+
+### Filosofía: "Cualquier dato en Splunk, cualquier caso de uso"
+
+Kepler está diseñado para trabajar con **cualquier tipo de datos** almacenados en Splunk, no solo datos industriales:
+
+#### Sectores y Casos de Uso Soportados
+
+**🏭 Industrial & Manufacturing**
+- Análisis predictivo de sensores IoT
+- Detección de anomalías en líneas de producción
+- Optimización de procesos manufactureros
+- Mantenimiento predictivo de maquinaria
+
+**🏦 Servicios Financieros**  
+- Detección de fraude en transacciones
+- Análisis de riesgo crediticio
+- Trading algorítmico con ML
+- Compliance y auditoría automática
+
+**🏥 Healthcare & Pharma**
+- Análisis de logs de dispositivos médicos
+- Detección de patrones en datos de pacientes
+- Optimización de operaciones hospitalarias
+- Drug discovery con IA generativa
+
+**🛒 E-commerce & Retail**
+- Sistemas de recomendación personalizados
+- Análisis de comportamiento de usuarios
+- Optimización de precios dinámicos
+- Detección de patrones de compra
+
+**📱 Technology & SaaS**
+- Análisis de performance de aplicaciones
+- Detección de anomalías en logs de sistema
+- Optimización de experiencia de usuario
+- Chatbots con IA generativa para soporte
+
+**🎮 Gaming & Entertainment**
+- Análisis de comportamiento de jugadores
+- Sistemas de recomendación de contenido
+- Detección de cheating y fraud
+- Personalización de experiencias
+
+**🚛 Logistics & Supply Chain**
+- Optimización de rutas de entrega
+- Predicción de demanda
+- Análisis de cadena de suministro
+- Tracking inteligente de inventarios
+
+**🏛️ Government & Public Sector**
+- Análisis de seguridad pública
+- Optimización de servicios ciudadanos
+- Detección de patrones en datos demográficos
+- Smart city analytics
+
+#### Tipos de Datos Soportados en Splunk
+
+**📊 Datos Estructurados**
+```python
+# Transacciones financieras
+data = kp.data.from_splunk("search index=transactions sourcetype=payment_logs")
+
+# Eventos de aplicación web
+data = kp.data.from_splunk("search index=web_logs status>=400")
+
+# Métricas de performance
+data = kp.data.from_splunk("| mstats avg(response_time) WHERE index=app_metrics")
+```
+
+**📝 Datos Semi-estructurados**
+```python
+# Logs de aplicación JSON
+data = kp.data.from_splunk("search index=app_logs | spath")
+
+# APIs REST logs
+data = kp.data.from_splunk("search index=api_logs method=POST")
+```
+
+**📄 Datos No Estructurados**
+```python
+# Logs de texto libre
+data = kp.data.from_splunk("search index=system_logs ERROR")
+
+# Logs de chat/soporte
+data = kp.data.from_splunk("search index=support_chats")
+```
+
+**📈 Series Temporales**
+```python
+# Métricas de negocio
+data = kp.data.from_splunk("| mstats avg(sales_amount) WHERE index=business_metrics span=1h")
+
+# KPIs operacionales
+data = kp.data.from_splunk("| mstats max(cpu_usage) WHERE index=infrastructure span=5m")
+```
+
+#### Ejemplos de Proyectos Reales
+
+**Proyecto E-commerce: Sistema de Recomendaciones**
+```python
+import kepler as kp
+from transformers import AutoModel
+
+# Extraer datos de comportamiento de usuarios
+user_behavior = kp.data.from_splunk("""
+search index=clickstream sourcetype=user_events
+| stats count by user_id, product_category, action
+""")
+
+# Entrenar modelo de recomendaciones con transformers
+model = AutoModel.from_pretrained("sentence-transformers/all-MiniLM-L6-v2")
+recommendations = kp.train.custom_model(user_behavior, model)
+
+# Desplegar API de recomendaciones
+kp.deploy.to_cloud_run(recommendations, name="product-recommendations")
+```
+
+**Proyecto Healthcare: Análisis de Dispositivos Médicos**
+```python
+# Extraer telemetría de dispositivos médicos
+device_data = kp.data.from_splunk("""
+| mstats avg(heart_rate), avg(blood_pressure) 
+WHERE index=medical_devices span=1m
+""")
+
+# Detección de anomalías con isolation forest
+from sklearn.ensemble import IsolationForest
+anomaly_model = kp.train.sklearn(device_data, algorithm="IsolationForest")
+
+# Alertas automáticas a Splunk
+kp.results.to_splunk(anomaly_model.predictions, index="medical_alerts")
+```
+
+**Proyecto Financial: Detección de Fraude**
+```python
+# Extraer transacciones sospechosas
+transactions = kp.data.from_splunk("""
+search index=payments amount>10000 OR velocity>threshold
+""")
+
+# Modelo de detección con XGBoost
+fraud_model = kp.train.xgboost(transactions, target="is_fraud")
+
+# Scoring en tiempo real
+kp.deploy.real_time_scoring(fraud_model, splunk_index="fraud_scores")
+```
+
+### Arquitectura Agnóstica por Diseño
+
+**Versión Actual (v0.1):** `Splunk → Kepler → GCP`  
+**Versión v0.5:** `Splunk/BigQuery → Kepler → GCP/AWS`  
+**Versión v1.0:** `Any Data Source → Kepler → Any Cloud`  
+**Versión v2.0:** `Any Source → Kepler → Any Destination + Edge`
 
 ## 4. Functional Requirements
 
@@ -438,17 +596,32 @@ kepler deploy model --include-private-deps
 3. Configurar auto-scaling y monitoring
 4. Pipeline automático de resultados a Splunk
 
-#### Fase 4 (Diciembre 2025-Enero 2026): Framework Expansion
-1. Soporte para PyTorch y TensorFlow
-2. Plugin system básico
-3. Multi-cloud support (AWS básico)
-4. Edge deployment capabilities
+#### Fase 4 (Diciembre 2025-Enero 2026): Multi-Cloud Expansion
+1. **AWS Support**: 
+   - Data sources: S3, RDS, Redshift, DynamoDB
+   - Compute: Lambda, ECS, SageMaker
+   - Deployment: AWS Batch, EKS
+2. **Azure Support**:
+   - Data sources: Blob Storage, SQL Database, Cosmos DB
+   - Compute: Azure Functions, Container Instances
+   - Deployment: Azure ML, AKS
+3. **On-premises Support**:
+   - Local databases: PostgreSQL, MySQL, MongoDB
+   - Local compute: Docker, Kubernetes
+   - Edge deployment: Raspberry Pi, NVIDIA Jetson
 
-#### Fase 5 (2026): Ecosystem Completo
-1. Plugin marketplace
-2. Advanced monitoring y alerting
-3. Community contributions
-4. Enterprise features
+#### Fase 5 (Enero-Marzo 2026): Data Source Expansion  
+1. **Database Connectors**: PostgreSQL, MySQL, MongoDB, Cassandra
+2. **API Connectors**: REST APIs, GraphQL, webhooks
+3. **File Connectors**: CSV, Parquet, JSON, Excel, PDF
+4. **Streaming Sources**: Kafka, Pulsar, RabbitMQ
+5. **Cloud Storage**: S3, GCS, Azure Blob, MinIO
+
+#### Fase 6 (2026): Ecosystem Completo
+1. Plugin marketplace y community contributions
+2. Advanced monitoring cross-platform
+3. Enterprise features y governance
+4. Multi-tenant support y white-labeling
 
 ---
 
