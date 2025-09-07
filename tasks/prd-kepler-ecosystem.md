@@ -366,12 +366,53 @@ fraud_model = kp.train.xgboost(transactions, target="is_fraud")
 kp.deploy.real_time_scoring(fraud_model, splunk_index="fraud_scores")
 ```
 
-### Arquitectura Agnóstica por Diseño
+### Arquitectura API-First: "Zero Context Switching"
 
-**Versión Actual (v0.1):** `Splunk → Kepler → GCP`  
-**Versión v0.5:** `Splunk/BigQuery → Kepler → GCP/AWS`  
-**Versión v1.0:** `Any Data Source → Kepler → Any Cloud`  
-**Versión v2.0:** `Any Source → Kepler → Any Destination + Edge`
+**Principio Fundamental:** El científico/analista **nunca debe salir** de su entorno de trabajo (Jupyter, VSCode, Cursor). Todas las operaciones se realizan vía APIs nativas encapsuladas por Kepler.
+
+**Stack Tecnológico Completo (API-First):**
+
+**Data & Analytics:**
+- **Splunk**: `splunk-sdk` + REST API + HEC API
+- **Databases**: `psycopg2`, `pymongo`, `sqlalchemy`
+- **Streaming**: `kafka-python`, `pulsar-client`
+
+**Cloud Platforms:**
+- **GCP**: `google-cloud-*` client libraries  
+- **Azure**: `azure-sdk-for-python` libraries
+- **AWS**: `boto3` + service-specific SDKs
+
+**MLOps & Experiment Tracking:**
+- **MLflow**: `mlflow` SDK para tracking, registry, serving
+- **Weights & Biases**: `wandb` para experiment tracking avanzado
+- **DVC**: `dvc` para data versioning y pipeline management
+- **Great Expectations**: `great_expectations` para data quality
+
+**Model Serving & Deployment:**
+- **FastAPI**: Para crear APIs de modelos automáticamente
+- **Docker**: `docker-py` para containerización automática
+- **Kubernetes**: `kubernetes` client para orchestration
+
+**Monitoring & Observability:**
+- **Prometheus**: `prometheus_client` para metrics collection
+- **Grafana**: `grafana-api` para dashboard automation
+- **DataDog**: `datadog` para APM y monitoring
+
+**Edge Computing:**
+- **Barbara IoT**: SDK nativo para edge deployment
+- **Splunk Edge Hub**: API para edge data processing
+- **NVIDIA Jetson**: `jetson-inference` para edge AI
+
+**Development & Productivity:**
+- **Jupyter**: `jupyterlab` integration para notebooks
+- **Git**: `pygit2` para version control automation
+- **CI/CD**: GitHub Actions, GitLab CI APIs
+
+**Evolución de Integración:**
+- **v0.1-v1.0:** Splunk SDK + GCP Client Libraries
+- **v1.5:** + Azure SDK (prioridad después de GCP)
+- **v2.0:** + AWS SDKs (boto3)
+- **v2.5:** + Edge APIs (Barbara IoT + Splunk Edge Hub)
 
 ## 4. Functional Requirements
 
@@ -596,32 +637,50 @@ kp.deploy.real_time_scoring(fraud_model, splunk_index="fraud_scores")
 3. Configurar auto-scaling y monitoring
 4. Pipeline automático de resultados a Splunk
 
-#### Fase 4 (Diciembre 2025-Enero 2026): Multi-Cloud Expansion
-1. **AWS Support**: 
-   - Data sources: S3, RDS, Redshift, DynamoDB
-   - Compute: Lambda, ECS, SageMaker
-   - Deployment: AWS Batch, EKS
-2. **Azure Support**:
-   - Data sources: Blob Storage, SQL Database, Cosmos DB
-   - Compute: Azure Functions, Container Instances
-   - Deployment: Azure ML, AKS
-3. **On-premises Support**:
-   - Local databases: PostgreSQL, MySQL, MongoDB
-   - Local compute: Docker, Kubernetes
-   - Edge deployment: Raspberry Pi, NVIDIA Jetson
+#### Fase 4 (Diciembre 2025-Enero 2026): Azure Cloud Expansion
+1. **Azure Support** (Prioridad #1 después de GCP):
+   - **Data sources**: Blob Storage, SQL Database, Cosmos DB, Synapse Analytics
+   - **Compute**: Azure Functions, Container Instances, Azure ML Compute
+   - **Deployment**: Azure ML, AKS, Azure Container Apps
+   - **Monitoring**: Azure Monitor, Application Insights
+   - **APIs**: `azure-sdk-for-python` complete integration
 
-#### Fase 5 (Enero-Marzo 2026): Data Source Expansion  
+2. **MLOps Stack Integration**:
+   - **MLflow**: Complete tracking, registry, serving
+   - **FastAPI**: Automatic model API generation
+   - **Docker**: Universal containerization
+   - **Prometheus**: Metrics collection standard
+
+#### Fase 5 (Enero-Marzo 2026): AWS Support
+1. **AWS Support** (Después de Azure):
+   - **Data sources**: S3, RDS, Redshift, DynamoDB
+   - **Compute**: Lambda, ECS, SageMaker
+   - **Deployment**: AWS Batch, EKS, AWS App Runner
+   - **APIs**: `boto3` + service-specific SDKs
+
+#### Fase 6 (Marzo-Mayo 2026): Edge Computing Expansion
+1. **Barbara IoT Integration** (Prioridad #1 para Edge):
+   - **Barbara IoT SDK**: Native integration para edge deployment
+   - **Edge ML**: Model optimization para edge devices
+   - **Offline capabilities**: Sync cuando hay conectividad
+   - **Device management**: Fleet management desde Kepler
+
+2. **Splunk Edge Hub Integration**:
+   - **Edge data processing**: Local processing con sync a Splunk
+   - **Hybrid architecture**: Edge + Cloud seamless
+
+3. **Additional Edge Platforms**:
+   - **NVIDIA Jetson**: AI inference optimization
+   - **Raspberry Pi**: Lightweight deployment
+   - **Industrial PCs**: Factory floor deployment
+
+#### Fase 7 (2026): Data Sources & Ecosystem Completo
 1. **Database Connectors**: PostgreSQL, MySQL, MongoDB, Cassandra
 2. **API Connectors**: REST APIs, GraphQL, webhooks
 3. **File Connectors**: CSV, Parquet, JSON, Excel, PDF
 4. **Streaming Sources**: Kafka, Pulsar, RabbitMQ
-5. **Cloud Storage**: S3, GCS, Azure Blob, MinIO
-
-#### Fase 6 (2026): Ecosystem Completo
-1. Plugin marketplace y community contributions
-2. Advanced monitoring cross-platform
-3. Enterprise features y governance
-4. Multi-tenant support y white-labeling
+5. **Plugin marketplace** y community contributions
+6. **Enterprise features** y governance
 
 ---
 
