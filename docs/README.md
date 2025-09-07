@@ -27,6 +27,18 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
   - Gestión automática de dependencias
   - Deployment con librerías custom
 
+- **[AutoML Guide](./AUTOML_GUIDE.md)** - Sistema AutoML completo
+  - Selección automática de algoritmos
+  - Optimización de hiperparámetros con Optuna
+  - Feature engineering automático
+  - Constraints industriales y casos de uso
+
+- **[Versioning Guide](./VERSIONING_GUIDE.md)** - Sistema MLOps completo
+  - Versionado Git + DVC + MLflow integrado
+  - Reproducibilidad completa de experimentos
+  - Trazabilidad end-to-end
+  - Gestión de releases multi-componente
+
 ### 🔧 Información Técnica
 - **[Estado de Validación](./VALIDATION_STATUS.md)** - Estado técnico detallado
   - Funcionalidades validadas con datos reales
@@ -67,7 +79,10 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
 |-----------|--------|-----------|---------------------|
 | README.md principal | ✅ Actualizado | Usuarios nuevos | Septiembre 2025 |
 | CLI_GUIDE.md | ✅ Completo | DevOps/Ingenieros | Septiembre 2025 |
-| SDK_GUIDE.md | ✅ Completo | Científicos de datos | Septiembre 2025 |
+| SDK_GUIDE.md | ✅ Actualizado | Científicos de datos | Septiembre 2025 |
+| AUTOML_GUIDE.md | ✅ Nuevo | Científicos de datos | Septiembre 2025 |
+| VERSIONING_GUIDE.md | ✅ Nuevo | Ingenieros MLOps | Septiembre 2025 |
+| CUSTOM_LIBRARIES_GUIDE.md | ✅ Completo | Desarrolladores | Septiembre 2025 |
 | VALIDATION_STATUS.md | ✅ Actual | Desarrolladores | Septiembre 2025 |
 | Notebooks de ejemplo | ✅ Validados | Científicos de datos | Septiembre 2025 |
 

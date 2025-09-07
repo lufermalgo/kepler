@@ -444,19 +444,99 @@ print(f"Datos extraídos: {len(datos)}")
 
 ---
 
+## 🤖 API de Entrenamiento Unificada
+
+### **Función Principal: `kp.train_unified.train()`**
+
+```python
+import kepler as kp
+
+# API unificada para cualquier framework AI
+model = kp.train_unified.train(data, target="failure", algorithm="auto")
+
+# Traditional ML
+model = kp.train_unified.train(data, target="failure", algorithm="xgboost")
+model = kp.train_unified.train(data, target="failure", algorithm="random_forest")
+
+# Deep Learning  
+model = kp.train_unified.train(data, target="failure", algorithm="pytorch", epochs=100)
+
+# Generative AI
+model = kp.train_unified.train(text_data, target="sentiment", algorithm="transformers", 
+                              text_column="review_text")
+```
+
+### **AutoML Inteligente: `kp.automl.*`**
+
+```python
+# Selección automática de algoritmo
+best_algo = kp.automl.select_algorithm(data, target="failure")
+print(f"Mejor algoritmo: {best_algo}")
+
+# Entrenamiento automático completo
+model = kp.automl.auto_train(data, target="failure")
+
+# AutoML con constraints industriales
+industrial_result = kp.automl.industrial_automl(
+    data, 
+    target="equipment_failure",
+    use_case="predictive_maintenance",
+    optimization_budget="1h"
+)
+```
+
+### **Sistema de Versionado MLOps: `kp.versioning.*`**
+
+```python
+# Crear versión unificada (Git + DVC + MLflow)
+version = kp.versioning.create_unified_version(
+    "production-v1.0",
+    data_paths=["data/sensors.csv"],
+    experiment_name="predictive-maintenance"
+)
+
+# Reproducir cualquier versión
+result = kp.reproduce.from_version("production-v1.0")
+
+# Gestión de releases
+release = kp.versioning.create_release("stable-v1.0", status="production")
+```
+
+### **Gestión Ilimitada de Librerías: `kp.libs.*`**
+
+```python
+# Instalar cualquier librería Python
+kp.libs.install("transformers>=4.30.0")
+kp.libs.install("git+https://github.com/research/experimental-ai.git")
+
+# Crear templates de AI
+kp.libs.template("generative_ai")  # Instala transformers, langchain, etc.
+kp.libs.template("deep_learning")  # Instala pytorch, tensorflow, etc.
+
+# Validar entorno
+status = kp.libs.validate()
+```
+
+---
+
 ## 🔄 Evolución del API
 
 ### **✅ Funcionalidades Actuales (0.1.0)**
-- ✅ `kp.data.from_splunk()` - Extracción completa
+- ✅ `kp.data.from_splunk()` - Extracción completa de datos
+- ✅ `kp.train_unified.train()` - API unificada para cualquier framework AI
+- ✅ `kp.automl.*` - Sistema AutoML completo (selección automática, optimización)
+- ✅ `kp.versioning.*` - Sistema MLOps completo (Git + DVC + MLflow)
+- ✅ `kp.reproduce.from_version()` - Reproducibilidad completa
+- ✅ `kp.libs.*` - Soporte ilimitado de librerías Python
 - ✅ Control temporal con `earliest`/`latest`
-- ✅ Manejo inteligente de errores
+- ✅ Manejo inteligente de errores con códigos estándar
 - ✅ Integración Jupyter optimizada
 
 ### **🚧 Próximas Versiones**
-- 🔄 `kp.train.*` - APIs de entrenamiento ML
-- 🔄 `kp.deploy.*` - APIs de deployment
-- 🔄 `kp.monitor.*` - APIs de monitoreo
-- 🔄 `kp.explain.*` - APIs de explicabilidad
+- 🔄 `kp.deploy.*` - APIs de deployment automático
+- 🔄 `kp.monitor.*` - APIs de monitoreo híbrido
+- 🔄 `kp.validate.*` - Validación completa de ecosistemas
+- 🔄 `kp.docs.*` - Generación automática de documentación
 
 ---
 

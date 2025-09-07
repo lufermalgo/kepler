@@ -14,9 +14,10 @@ from splunklib import client, results
 
 from kepler.utils.logging import get_logger
 from kepler.utils.exceptions import SplunkConnectionError, DataExtractionError
+from kepler.core.interfaces import DataConnector
 
 
-class SplunkConnector:
+class SplunkConnector(DataConnector):
     """
     Handles connection and operations with Splunk Enterprise
     
@@ -342,6 +343,35 @@ class SplunkConnector:
                 suggestion="Check network connectivity to Splunk server"
             )
     
+    def extract(self, query: str, **kwargs) -> pd.DataFrame:
+        """
+        Extract data using SPL query (implements DataConnector interface)
+        
+        Args:
+            query: SPL query string
+            **kwargs: Additional parameters (earliest_time, latest_time, max_results, etc.)
+            
+        Returns:
+            DataFrame with extracted data
+            
+        Raises:
+            KeplerError: If extraction fails
+        """
+        # Extract parameters from kwargs
+        earliest_time = kwargs.get('earliest_time')
+        latest_time = kwargs.get('latest_time') 
+        max_results = kwargs.get('max_results', 10000)
+        timeout = kwargs.get('timeout')
+        
+        # Use existing search method
+        results = self.search(query, earliest_time, latest_time, max_results, timeout)
+        
+        # Convert to DataFrame
+        if not results:
+            return pd.DataFrame()
+        
+        return pd.DataFrame(results)
+    
     def search(self, 
                query: str, 
                earliest_time: Optional[str] = None,
@@ -627,6 +657,16 @@ class SplunkConnector:
     # =====================================
     # INDEX MANAGEMENT AND VALIDATION
     # =====================================
+    
+    def get_available_indexes(self) -> List[str]:
+        """
+        Get list of available index names (implements DataConnector interface)
+        
+        Returns:
+            List of index names
+        """
+        indexes_info = self.list_indexes()
+        return [idx.get('name', '') for idx in indexes_info if idx.get('name')]
     
     def list_indexes(self) -> List[Dict[str, Any]]:
         """

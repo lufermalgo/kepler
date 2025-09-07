@@ -6,27 +6,34 @@ Provides specific exception types for better error handling and user experience.
 
 import sys
 import traceback
-from typing import Optional
+from typing import Optional, Dict
 
 
 class KeplerError(Exception):
-    """Base exception for all Kepler-related errors"""
+    """Base exception for all Kepler-related errors with standardized structure"""
     
-    def __init__(self, message: str, details: Optional[str] = None, suggestion: Optional[str] = None):
-        self.message = message
-        self.details = details
-        self.suggestion = suggestion
+    def __init__(self, code: str, message: str, hint: str = None, 
+                 context: Dict = None, retryable: bool = False):
+        self.code = code          # Código estandarizado
+        self.message = message    # Mensaje claro
+        self.hint = hint         # Sugerencia de remediación
+        self.context = context or {}  # Contexto adicional
+        self.retryable = retryable    # ¿Se puede reintentar?
         super().__init__(self.message)
     
     def get_user_message(self, verbose: bool = False) -> str:
         """Get a user-friendly error message"""
-        msg = f"❌ {self.message}"
+        msg = f"❌ [{self.code}] {self.message}"
         
-        if self.details:
-            msg += f"\n   Details: {self.details}"
+        if self.context:
+            context_str = ", ".join([f"{k}={v}" for k, v in self.context.items()])
+            msg += f"\n   Context: {context_str}"
         
-        if self.suggestion:
-            msg += f"\n   💡 Suggestion: {self.suggestion}"
+        if self.hint:
+            msg += f"\n   💡 Hint: {self.hint}"
+            
+        if self.retryable:
+            msg += f"\n   🔄 This operation can be retried"
         
         if verbose:
             msg += f"\n   Stack trace:\n{traceback.format_exc()}"
@@ -37,63 +44,99 @@ class KeplerError(Exception):
 class ConfigurationError(KeplerError):
     """Raised when there's an issue with configuration"""
     
-    def __init__(self, message: str, config_file: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Configuration file: {config_file}" if config_file else None
-        super().__init__(message, details, suggestion)
+    def __init__(self, message: str, config_file: Optional[str] = None, hint: Optional[str] = None):
+        context = {"config_file": config_file} if config_file else {}
+        super().__init__(
+            code="CONFIG_001",
+            message=message,
+            hint=hint or "Check configuration file syntax and required fields",
+            context=context,
+            retryable=False
+        )
 
 
 class SplunkConnectionError(KeplerError):
-    """Raised when Splunk connection fails"""
+    """Raised when connection to Splunk fails"""
     
-    def __init__(self, message: str, splunk_host: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Splunk host: {splunk_host}" if splunk_host else None
-        default_suggestion = "Check your Splunk credentials and network connectivity"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, splunk_host: Optional[str] = None, hint: Optional[str] = None):
+        context = {"host": splunk_host} if splunk_host else {}
+        super().__init__(
+            code="SPLUNK_001",
+            message=message,
+            hint=hint or "Check Splunk host URL and credentials",
+            context=context,
+            retryable=True
+        )
 
 
 class DataExtractionError(KeplerError):
     """Raised when data extraction from Splunk fails"""
     
-    def __init__(self, message: str, query: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Query: {query}" if query else None
-        default_suggestion = "Verify your SPL query syntax and data availability"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, query: Optional[str] = None, hint: Optional[str] = None):
+        context = {"query": query} if query else {}
+        super().__init__(
+            code="DATA_001",
+            message=message,
+            hint=hint or "Check your SPL query syntax and index permissions",
+            context=context,
+            retryable=True
+        )
 
 
 class ModelTrainingError(KeplerError):
     """Raised when model training fails"""
     
-    def __init__(self, message: str, data_info: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Data info: {data_info}" if data_info else None
-        default_suggestion = "Check your data quality and target column"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, algorithm: Optional[str] = None, hint: Optional[str] = None):
+        context = {"algorithm": algorithm} if algorithm else {}
+        super().__init__(
+            code="TRAINING_001",
+            message=message,
+            hint=hint or "Check your data quality and target column",
+            context=context,
+            retryable=True
+        )
 
 
 class DeploymentError(KeplerError):
     """Raised when model deployment fails"""
     
-    def __init__(self, message: str, service_name: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Service: {service_name}" if service_name else None
-        default_suggestion = "Check your GCP credentials and project configuration"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, service_name: Optional[str] = None, hint: Optional[str] = None):
+        context = {"service": service_name} if service_name else {}
+        super().__init__(
+            code="DEPLOY_001",
+            message=message,
+            hint=hint or "Check cloud credentials and service configuration",
+            context=context,
+            retryable=True
+        )
 
 
 class ValidationError(KeplerError):
     """Raised when validation fails"""
     
-    def __init__(self, message: str, component: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Component: {component}" if component else None
-        default_suggestion = "Run 'kepler validate' to check prerequisites"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, component: Optional[str] = None, hint: Optional[str] = None):
+        context = {"component": component} if component else {}
+        super().__init__(
+            code="VALIDATE_001",
+            message=message,
+            hint=hint or "Run 'kepler validate' to check prerequisites",
+            context=context,
+            retryable=True
+        )
 
 
 class LibraryManagementError(KeplerError):
     """Raised when library installation or management fails"""
     
-    def __init__(self, message: str, library_name: Optional[str] = None, suggestion: Optional[str] = None):
-        details = f"Library: {library_name}" if library_name else None
-        default_suggestion = "Check library name, version, and source URL"
-        super().__init__(message, details, suggestion or default_suggestion)
+    def __init__(self, message: str, library_name: Optional[str] = None, hint: Optional[str] = None):
+        context = {"library": library_name} if library_name else {}
+        super().__init__(
+            code="LIBRARY_001",
+            message=message,
+            hint=hint or "Check library name, version, and source URL",
+            context=context,
+            retryable=True
+        )
 
 
 def handle_exception(exc: Exception, verbose: bool = False) -> int:
