@@ -585,3 +585,187 @@ def get_framework_recommendations(use_case: str) -> Dict[str, List[str]]:
         recommendations[category] = list(dict.fromkeys(recommendations[category]))
     
     return recommendations
+
+
+# ===== CUSTOM LIBRARY INTEGRATION API =====
+
+def setup_ssh(ssh_key_path: str = None, test_connection: bool = True) -> bool:
+    """
+    Setup SSH authentication for private repositories
+    
+    Args:
+        ssh_key_path: Path to SSH private key (default: ~/.ssh/id_rsa)
+        test_connection: Whether to test SSH connection
+        
+    Returns:
+        True if SSH setup successful
+        
+    Example:
+        >>> kp.libs.setup_ssh()
+        >>> kp.libs.install_github("company/private-ml-lib")
+    """
+    manager = LibraryManager()
+    return manager.setup_ssh_authentication(ssh_key_path, test_connection)
+
+def install_github(repo_url: str, branch: str = None, tag: str = None, 
+                  commit: str = None, subdirectory: str = None) -> bool:
+    """
+    Install library directly from GitHub repository
+    
+    Args:
+        repo_url: GitHub repository URL or "user/repo" format
+        branch: Specific branch to install from
+        tag: Specific tag to install from
+        commit: Specific commit hash to install from
+        subdirectory: Subdirectory containing setup.py
+        
+    Returns:
+        True if installation successful
+        
+    Examples:
+        >>> # Install latest from main branch
+        >>> kp.libs.install_github("huggingface/transformers")
+        
+        >>> # Install specific version
+        >>> kp.libs.install_github("pytorch/pytorch", tag="v2.0.0")
+        
+        >>> # Install from specific commit
+        >>> kp.libs.install_github("research/experimental-ai", commit="abc123")
+        
+        >>> # Install from subdirectory
+        >>> kp.libs.install_github("monorepo/project", subdirectory="ml-package")
+    """
+    manager = LibraryManager()
+    return manager.install_from_github(repo_url, branch, tag, commit, subdirectory)
+
+def install_local(local_path: str, editable: bool = True) -> bool:
+    """
+    Install library from local path
+    
+    Args:
+        local_path: Path to local library directory
+        editable: Install in editable mode (changes reflect immediately)
+        
+    Returns:
+        True if installation successful
+        
+    Examples:
+        >>> # Install custom library in editable mode
+        >>> kp.libs.install_local("./custom-libs/my-algorithm")
+        
+        >>> # Install without editable mode
+        >>> kp.libs.install_local("./external-lib", editable=False)
+    """
+    manager = LibraryManager()
+    return manager.install_local_library(local_path, editable)
+
+def install_wheel(wheel_path: str) -> bool:
+    """
+    Install library from wheel file
+    
+    Args:
+        wheel_path: Path to .whl file
+        
+    Returns:
+        True if installation successful
+        
+    Example:
+        >>> kp.libs.install_wheel("./dist/my_package-1.0.0-py3-none-any.whl")
+    """
+    manager = LibraryManager()
+    return manager.install_from_wheel(wheel_path)
+
+def create_custom_lib(library_name: str, author: str = "Kepler User") -> str:
+    """
+    Create template for custom library development
+    
+    Args:
+        library_name: Name for the new library
+        author: Author name
+        
+    Returns:
+        Path to created library template
+        
+    Example:
+        >>> # Create custom library template
+        >>> lib_path = kp.libs.create_custom_lib("industrial-algorithms", "Ana Rodriguez")
+        >>> # Edit the library in: ./custom-libs/industrial-algorithms/
+        >>> kp.libs.install_local(lib_path)  # Install in editable mode
+    """
+    manager = LibraryManager()
+    return manager.create_custom_library_template(library_name, author)
+
+def clone_repo(repo_url: str, target_dir: str = None, branch: str = None, 
+               install_editable: bool = True) -> bool:
+    """
+    Clone Git repository and install as editable library
+    
+    Args:
+        repo_url: Git repository URL
+        target_dir: Where to clone (default: ./custom-libs/)
+        branch: Specific branch to clone
+        install_editable: Install in editable mode after cloning
+        
+    Returns:
+        True if clone and installation successful
+        
+    Examples:
+        >>> # Clone and install experimental library
+        >>> kp.libs.clone_repo("https://github.com/research/experimental-ai.git")
+        
+        >>> # Clone specific branch
+        >>> kp.libs.clone_repo("git@company.com:ai/private-lib.git", branch="feature-v2")
+    """
+    manager = LibraryManager()
+    return manager.clone_and_install_repo(repo_url, target_dir, branch, install_editable)
+
+def validate_custom(library_name: str) -> Dict[str, Any]:
+    """
+    Validate custom library installation and provide detailed info
+    
+    Args:
+        library_name: Name of the library to validate
+        
+    Returns:
+        Validation results with detailed information
+        
+    Example:
+        >>> validation = kp.libs.validate_custom("my-custom-lib")
+        >>> if validation["importable"]:
+        >>>     print(f"✅ {library_name} is working correctly")
+        >>> else:
+        >>>     print(f"❌ Issues: {validation['errors']}")
+    """
+    manager = LibraryManager()
+    return manager.validate_custom_library(library_name)
+
+def configure_private_repo(repo_url: str, auth_method: str = "ssh", 
+                          username: str = None, token: str = None) -> Dict[str, str]:
+    """
+    Configure access to private repositories
+    
+    Args:
+        repo_url: Private repository URL
+        auth_method: "ssh", "https", or "token"
+        username: Username for HTTPS auth
+        token: Personal access token
+        
+    Returns:
+        Configuration for private repo access
+        
+    Examples:
+        >>> # SSH authentication (recommended)
+        >>> config = kp.libs.configure_private_repo(
+        ...     "git@github.com:company/private-ai.git", 
+        ...     auth_method="ssh"
+        ... )
+        
+        >>> # HTTPS with token
+        >>> config = kp.libs.configure_private_repo(
+        ...     "https://github.com/company/private-ai.git",
+        ...     auth_method="token",
+        ...     token="ghp_xxxxxxxxxxxx"
+        ... )
+    """
+    manager = LibraryManager()
+    return manager.create_private_repo_config(repo_url, auth_method, username, token)

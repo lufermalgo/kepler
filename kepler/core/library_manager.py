@@ -1205,6 +1205,482 @@ class LibraryManager:
         self.logger.info(f"Created production requirements: {prod_requirements_file}")
         return str(prod_requirements_file)
 
+    def setup_ssh_authentication(self, ssh_key_path: str = None, test_connection: bool = True) -> bool:
+        """
+        Setup SSH authentication for private repositories
+        
+        Args:
+            ssh_key_path: Path to SSH private key (default: ~/.ssh/id_rsa)
+            test_connection: Whether to test SSH connection
+            
+        Returns:
+            True if SSH setup successful, False otherwise
+        """
+        if ssh_key_path is None:
+            ssh_key_path = os.path.expanduser("~/.ssh/id_rsa")
+            
+        ssh_key_path = Path(ssh_key_path)
+        
+        if not ssh_key_path.exists():
+            self.logger.error(f"SSH key not found: {ssh_key_path}")
+            return False
+            
+        # Set proper permissions for SSH key
+        try:
+            os.chmod(ssh_key_path, 0o600)
+            self.logger.info(f"SSH key permissions set: {ssh_key_path}")
+        except Exception as e:
+            self.logger.warning(f"Could not set SSH key permissions: {e}")
+            
+        # Test SSH connection if requested
+        if test_connection:
+            return self._test_ssh_connection()
+            
+        return True
+        
+    def _test_ssh_connection(self) -> bool:
+        """Test SSH connection to common Git providers"""
+        providers = [
+            ("github.com", "git@github.com"),
+            ("gitlab.com", "git@gitlab.com"),
+            ("bitbucket.org", "git@bitbucket.org")
+        ]
+        
+        for provider_name, ssh_url in providers:
+            try:
+                result = subprocess.run([
+                    "ssh", "-T", "-o", "ConnectTimeout=5", 
+                    "-o", "StrictHostKeyChecking=no", ssh_url
+                ], capture_output=True, text=True, timeout=10)
+                
+                # SSH test connection typically returns exit code 1 but with success message
+                if "successfully authenticated" in result.stderr.lower() or result.returncode in [0, 1]:
+                    self.logger.info(f"SSH connection to {provider_name}: OK")
+                    return True
+                    
+            except (subprocess.TimeoutExpired, subprocess.SubprocessError) as e:
+                self.logger.debug(f"SSH test to {provider_name} failed: {e}")
+                continue
+                
+        self.logger.warning("Could not verify SSH connectivity to Git providers")
+        return False
+
+    def install_from_github(self, repo_url: str, branch: str = None, tag: str = None, 
+                           commit: str = None, subdirectory: str = None) -> bool:
+        """
+        Install library directly from GitHub repository
+        
+        Args:
+            repo_url: GitHub repository URL (https or ssh)
+            branch: Specific branch to install from
+            tag: Specific tag to install from  
+            commit: Specific commit hash to install from
+            subdirectory: Subdirectory containing setup.py
+            
+        Returns:
+            True if installation successful, False otherwise
+        """
+        try:
+            # Build pip install URL
+            if repo_url.startswith("git@"):
+                # SSH URL
+                install_url = f"git+{repo_url}"
+            elif repo_url.startswith("https://github.com"):
+                # HTTPS URL
+                install_url = f"git+{repo_url}"
+            else:
+                # Assume it's a repo name like "user/repo"
+                install_url = f"git+https://github.com/{repo_url}"
+                
+            # Add version specifier
+            if commit:
+                install_url += f"@{commit}"
+            elif tag:
+                install_url += f"@{tag}"
+            elif branch:
+                install_url += f"@{branch}"
+                
+            # Add subdirectory if specified
+            if subdirectory:
+                install_url += f"#subdirectory={subdirectory}"
+                
+            # Create LibrarySpec and install
+            spec = LibrarySpec(
+                name=self._extract_repo_name(repo_url),
+                source=LibrarySource.GITHUB,
+                url=install_url
+            )
+            
+            return self.install_library(spec)
+            
+        except Exception as e:
+            self.logger.error(f"Failed to install from GitHub {repo_url}: {e}")
+            return False
+            
+    def _extract_repo_name(self, repo_url: str) -> str:
+        """Extract repository name from GitHub URL"""
+        # Handle various GitHub URL formats
+        patterns = [
+            r"github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?(?:/.*)?$",
+            r"^([^/]+)/([^/]+)$"  # Simple user/repo format
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, repo_url)
+            if match:
+                return match.group(2).replace(".git", "")
+                
+        # Fallback: use last part of URL
+        return repo_url.split("/")[-1].replace(".git", "")
+
+    def install_local_library(self, local_path: str, editable: bool = True) -> bool:
+        """
+        Install library from local path
+        
+        Args:
+            local_path: Path to local library (containing setup.py or pyproject.toml)
+            editable: Install in editable mode (-e flag)
+            
+        Returns:
+            True if installation successful, False otherwise
+        """
+        local_path = Path(local_path).resolve()
+        
+        if not local_path.exists():
+            self.logger.error(f"Local path not found: {local_path}")
+            return False
+            
+        # Check for setup files
+        setup_files = ["setup.py", "pyproject.toml", "setup.cfg"]
+        has_setup = any((local_path / setup_file).exists() for setup_file in setup_files)
+        
+        if not has_setup:
+            self.logger.error(f"No setup file found in {local_path}. Expected: {setup_files}")
+            return False
+            
+        try:
+            # Build pip install command
+            install_args = [sys.executable, "-m", "pip", "install"]
+            
+            if editable:
+                install_args.extend(["-e", str(local_path)])
+            else:
+                install_args.append(str(local_path))
+                
+            result = subprocess.run(install_args, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                library_name = self._extract_name_from_path(local_path)
+                self.logger.info(f"Successfully installed local library: {library_name}")
+                return True
+            else:
+                self.logger.error(f"Local installation failed: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error installing local library {local_path}: {e}")
+            return False
+
+    def create_private_repo_config(self, repo_url: str, auth_method: str = "ssh", 
+                                  username: str = None, token: str = None) -> Dict[str, str]:
+        """
+        Create configuration for private repository access
+        
+        Args:
+            repo_url: Private repository URL
+            auth_method: Authentication method ("ssh", "https", "token")
+            username: Username for HTTPS auth
+            token: Personal access token for HTTPS auth
+            
+        Returns:
+            Configuration dictionary for private repo access
+        """
+        config = {
+            "repo_url": repo_url,
+            "auth_method": auth_method
+        }
+        
+        if auth_method == "ssh":
+            # SSH authentication (recommended for private repos)
+            config["install_url"] = f"git+ssh://{repo_url}"
+            config["requirements"] = f"git+ssh://{repo_url}"
+            
+        elif auth_method == "https" and username and token:
+            # HTTPS with token authentication
+            if "github.com" in repo_url:
+                auth_url = repo_url.replace("https://github.com", f"https://{username}:{token}@github.com")
+            elif "gitlab.com" in repo_url:
+                auth_url = repo_url.replace("https://gitlab.com", f"https://{username}:{token}@gitlab.com")
+            else:
+                auth_url = repo_url  # Custom Git server
+                
+            config["install_url"] = f"git+{auth_url}"
+            config["requirements"] = f"git+{auth_url}"
+            
+        elif auth_method == "token" and token:
+            # Token-only authentication (GitHub, GitLab)
+            if "github.com" in repo_url:
+                auth_url = repo_url.replace("https://github.com", f"https://{token}@github.com")
+            else:
+                auth_url = repo_url
+                
+            config["install_url"] = f"git+{auth_url}"
+            config["requirements"] = f"git+{auth_url}"
+            
+        return config
+
+    def validate_custom_library(self, library_name: str) -> Dict[str, Any]:
+        """
+        Validate that a custom library is properly installed and importable
+        
+        Args:
+            library_name: Name of the library to validate
+            
+        Returns:
+            Validation results with status, version, location, etc.
+        """
+        validation = {
+            "library_name": library_name,
+            "installed": False,
+            "importable": False,
+            "version": None,
+            "location": None,
+            "source": None,
+            "editable": False,
+            "dependencies": [],
+            "errors": []
+        }
+        
+        try:
+            # Check if installed
+            try:
+                dist = pkg_resources.get_distribution(library_name)
+                validation["installed"] = True
+                validation["version"] = dist.version
+                validation["location"] = dist.location
+                
+                # Check if editable install
+                if dist.location and "site-packages" not in dist.location:
+                    validation["editable"] = True
+                    validation["source"] = "local_editable"
+                elif ".git" in str(dist.location) or "github" in str(dist.location):
+                    validation["source"] = "git_repository"
+                else:
+                    validation["source"] = "pypi"
+                    
+                # Get dependencies
+                validation["dependencies"] = [str(req) for req in dist.requires()]
+                
+            except pkg_resources.DistributionNotFound:
+                validation["errors"].append(f"Library {library_name} not found in installed packages")
+                
+            # Check if importable
+            try:
+                importlib.import_module(library_name)
+                validation["importable"] = True
+            except ImportError as e:
+                validation["importable"] = False
+                validation["errors"].append(f"Import failed: {e}")
+                
+        except Exception as e:
+            validation["errors"].append(f"Validation error: {e}")
+            
+        return validation
+
+    def create_custom_library_template(self, library_name: str, author: str = "Kepler User") -> str:
+        """
+        Create template structure for custom library development
+        
+        Args:
+            library_name: Name for the new custom library
+            author: Author name for the library
+            
+        Returns:
+            Path to created library template
+        """
+        # Create library directory structure
+        lib_path = self.project_path / "custom-libs" / library_name
+        lib_path.mkdir(parents=True, exist_ok=True)
+        
+        # Create package directory
+        package_path = lib_path / library_name.replace("-", "_")
+        package_path.mkdir(exist_ok=True)
+        
+        # Create __init__.py
+        init_file = package_path / "__init__.py"
+        init_content = f'''"""
+{library_name} - Custom Library for Kepler Project
+
+A custom Python library developed for use with Kepler Framework.
+"""
+
+__version__ = "0.1.0"
+__author__ = "{author}"
+
+# Your custom code here
+def hello_kepler():
+    """Example function for custom library"""
+    return f"Hello from {library_name}!"
+'''
+        init_file.write_text(init_content)
+        
+        # Create setup.py
+        setup_file = lib_path / "setup.py"
+        setup_content = f'''from setuptools import setup, find_packages
+
+setup(
+    name="{library_name}",
+    version="0.1.0",
+    author="{author}",
+    description="Custom library for Kepler project",
+    packages=find_packages(),
+    python_requires=">=3.8",
+    install_requires=[
+        # Add your dependencies here
+    ],
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+    ],
+)
+'''
+        setup_file.write_text(setup_content)
+        
+        # Create README.md for the custom library
+        readme_file = lib_path / "README.md"
+        readme_content = f'''# {library_name}
+
+Custom Python library for Kepler project.
+
+## Installation
+
+From your Kepler project root:
+
+```bash
+# Install in editable mode (recommended for development)
+kepler libs install-local ./custom-libs/{library_name} --editable
+
+# Or add to requirements.txt:
+-e ./custom-libs/{library_name}
+```
+
+## Usage
+
+```python
+import {library_name.replace("-", "_")}
+
+# Example usage
+result = {library_name.replace("-", "_")}.hello_kepler()
+print(result)
+```
+
+## Development
+
+This library is set up for development with Kepler Framework. 
+Any changes you make will be immediately available in your project.
+'''
+        readme_file.write_text(readme_content)
+        
+        self.logger.info(f"Created custom library template: {lib_path}")
+        return str(lib_path)
+
+    def install_from_wheel(self, wheel_path: str) -> bool:
+        """
+        Install library from local wheel file
+        
+        Args:
+            wheel_path: Path to .whl file
+            
+        Returns:
+            True if installation successful, False otherwise
+        """
+        wheel_path = Path(wheel_path)
+        
+        if not wheel_path.exists():
+            self.logger.error(f"Wheel file not found: {wheel_path}")
+            return False
+            
+        if not wheel_path.suffix == ".whl":
+            self.logger.error(f"File is not a wheel: {wheel_path}")
+            return False
+            
+        try:
+            result = subprocess.run([
+                sys.executable, "-m", "pip", "install", str(wheel_path)
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                self.logger.info(f"Successfully installed wheel: {wheel_path.name}")
+                return True
+            else:
+                self.logger.error(f"Wheel installation failed: {result.stderr}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error installing wheel {wheel_path}: {e}")
+            return False
+
+    def clone_and_install_repo(self, repo_url: str, target_dir: str = None, 
+                              branch: str = None, install_editable: bool = True) -> bool:
+        """
+        Clone repository and install as local editable library
+        
+        Args:
+            repo_url: Git repository URL
+            target_dir: Local directory to clone into (default: ./custom-libs/)
+            branch: Specific branch to clone
+            install_editable: Install in editable mode
+            
+        Returns:
+            True if clone and installation successful, False otherwise
+        """
+        try:
+            if target_dir is None:
+                target_dir = self.project_path / "custom-libs"
+            else:
+                target_dir = Path(target_dir)
+                
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Extract repo name for directory
+            repo_name = self._extract_repo_name(repo_url)
+            clone_path = target_dir / repo_name
+            
+            # Remove existing directory if it exists
+            if clone_path.exists():
+                shutil.rmtree(clone_path)
+                
+            # Build git clone command
+            clone_cmd = ["git", "clone"]
+            if branch:
+                clone_cmd.extend(["-b", branch])
+            clone_cmd.extend([repo_url, str(clone_path)])
+            
+            # Clone repository
+            result = subprocess.run(clone_cmd, capture_output=True, text=True)
+            
+            if result.returncode != 0:
+                self.logger.error(f"Git clone failed: {result.stderr}")
+                return False
+                
+            self.logger.info(f"Successfully cloned {repo_url} to {clone_path}")
+            
+            # Install the cloned library
+            if install_editable:
+                return self.install_local_library(str(clone_path), editable=True)
+            else:
+                return self.install_local_library(str(clone_path), editable=False)
+                
+        except Exception as e:
+            self.logger.error(f"Error cloning and installing {repo_url}: {e}")
+            return False
+
 
 # Convenience functions for CLI and SDK
 def install_unlimited_libraries(requirements_file: str = "requirements.txt", 

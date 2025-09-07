@@ -1,8 +1,8 @@
 # Product Requirements Document - Kepler Framework Ecosystem
 
-> **Fecha:** 6 de Septiembre de 2025  
-> **Versión:** 1.0 (Documento Fundacional)  
-> **Estado:** Draft Inicial  
+> **Fecha:** 7 de Septiembre de 2025  
+> **Versión:** 1.1 (Actualizado con AutoML y Versionado Completo)  
+> **Estado:** En Desarrollo Activo  
 > **Audiencia:** Científicos de Datos, Ingenieros, Analistas, Stakeholders
 
 ## 1. Introducción/Overview
@@ -189,6 +189,338 @@ git+https://github.com/mi-usuario/transformers.git@custom-industrial-models
 3. **Deployment automático**: Las dependencias se empaquetan automáticamente
 4. **Conflict resolution**: Detección y resolución de conflictos de versiones
 5. **Documentation auto**: Documentación automática de dependencias usadas
+
+#### Gestión de Librerías para Producción
+
+**Filosofía: Desarrollo Rico, Producción Optimizada**
+
+Kepler implementa una estrategia dual para gestión de dependencias:
+
+**Entorno de Desarrollo:**
+- **Librerías completas**: Todas las herramientas de análisis, visualización, experimentación
+- **Flexibilidad total**: Instalar cualquier librería sin restricciones
+- **Entorno rico**: Jupyter, plotly, streamlit, debugging tools, profilers
+
+**Entorno de Producción:**
+- **Optimización automática**: Solo dependencias esenciales para el modelo
+- **Containerización inteligente**: Docker images mínimas y eficientes
+- **Dependency pruning**: Eliminación automática de librerías no utilizadas
+
+```python
+# Desarrollo - Ana trabaja con entorno completo
+kp.libs.install(["plotly", "streamlit", "jupyter", "seaborn"])  # ~2GB
+model = kp.train.xgboost(data, target="objetivo")
+
+# Producción - Kepler optimiza automáticamente
+kp.libs.optimize_for_production(model_version="v1.2.3")
+# Genera requirements-prod.txt (~200MB) con solo lo esencial
+```
+
+#### Sistema de Versionado Inteligente
+
+**Filosofía: Automático + Manual + Inteligente**
+
+Kepler proporciona múltiples estrategias de versionado de modelos:
+
+**1. Versionado Automático (Default):**
+```python
+model = kp.train.xgboost(data, target="objetivo")
+# Kepler asigna automáticamente: "v1.0.0_20250907_143052"
+```
+
+**2. Versionado Manual (Opcional):**
+```python
+model = kp.train.xgboost(data, target="objetivo")
+model.save(version="v2.1.0", description="Modelo con nuevas features")
+```
+
+**3. Versionado Inteligente (Futuro - Task 6.0):**
+```python
+# Kepler analiza contexto y sugiere versión
+model = kp.train.xgboost(data, target="objetivo")
+print(f"Kepler sugiere: {model.suggested_version}")  # "v1.2.0 - Performance improvement"
+
+# Ana puede aceptar o rechazar
+model.save()  # Acepta sugerencia
+# O
+model.save("v3.0.0")  # Usa versión manual
+```
+
+**Contexto Inteligente Analizado:**
+- Número de modelos existentes en el proyecto
+- Performance vs modelos anteriores (mejor/peor)
+- Cambios en features/datos utilizados
+- Cambios en algoritmo o hiperparámetros
+- Detección de data drift
+
+**Integración con Git y MLOps:**
+- **Versionado de código**: Automático con git commits
+- **Versionado de datos**: Integración con DVC/Pachyderm
+- **Versionado de modelos**: MLflow Registry integration
+- **Trazabilidad completa**: Desde datos hasta deployment
+
+### Sistema de Versionado Completo MLOps
+
+**Filosofía: "Trazabilidad Total - Datos + Código + Modelos + Features"**
+
+Kepler implementa versionado completo de todo el pipeline de ciencia de datos:
+
+**1. Versionado de Datos (Data Versioning):**
+```python
+# Versionado automático de datasets
+dataset = kp.data.from_splunk("search index=sensors", version="auto")
+# Kepler automáticamente:
+# ✅ Genera hash del dataset: "dataset_sensors_abc123"
+# ✅ Almacena metadata: filas, columnas, distribuciones
+# ✅ Registra en DVC: data/sensors/v1.0.0/
+# ✅ Commit automático: "Data: sensor dataset v1.0.0"
+
+# Versionado manual de datos
+dataset = kp.data.from_splunk("search index=sensors")
+dataset.version("v2.1.0", description="Datos con nuevos sensores agregados")
+```
+
+**2. Versionado de Feature Engineering:**
+```python
+# Pipeline de features versionado
+features = kp.features.create_pipeline([
+    kp.features.StandardScaler(),
+    kp.features.PolynomialFeatures(degree=2),
+    kp.features.SelectKBest(k=10)
+])
+
+# Kepler versiona automáticamente:
+# ✅ Pipeline de transformaciones: "features_v1.2.0"
+# ✅ Features generadas: nombres, tipos, distribuciones
+# ✅ Código de transformación: guardado en Git
+# ✅ Datos transformados: versionados en DVC
+
+transformed_data = features.fit_transform(dataset, version="v1.2.0")
+```
+
+**3. Versionado de Experimentos:**
+```python
+# Experimento con versionado completo
+with kp.experiment.track("predictive-maintenance-v3") as exp:
+    # Kepler rastrea automáticamente:
+    exp.log_dataset(dataset, version="v2.1.0")
+    exp.log_features(features, version="v1.2.0") 
+    exp.log_code_version()  # Git commit actual
+    
+    model = kp.train.xgboost(transformed_data, target="failure")
+    exp.log_model(model, version="v1.3.0")
+    
+    # Trazabilidad completa registrada:
+    # data:sensors:v2.1.0 → features:v1.2.0 → model:v1.3.0
+```
+
+**4. Integración Git + DVC + MLflow:**
+```python
+# Versionado híbrido automático
+kp.version.create_release(
+    name="production-release-v2.0.0",
+    components={
+        "code": "git:main@abc123",           # Git commit
+        "data": "dvc:sensors:v2.1.0",       # DVC data version
+        "features": "dvc:features:v1.2.0",  # DVC features version
+        "model": "mlflow:model:v1.3.0",     # MLflow model version
+        "config": "kepler.yml:v2.0.0"       # Config version
+    }
+)
+
+# Kepler genera automáticamente:
+# ✅ Git tag: "v2.0.0"
+# ✅ DVC pipeline: data → features → model
+# ✅ MLflow experiment: con trazabilidad completa
+# ✅ Release notes: cambios en datos, features, modelo
+```
+
+**5. Trazabilidad End-to-End:**
+```python
+# Consultar trazabilidad completa
+lineage = kp.lineage.trace(model_version="v1.3.0")
+
+print(lineage.summary())
+# Model: predictive-maintenance:v1.3.0
+# ├── Data: sensors:v2.1.0 (2,890 rows, 15 columns)
+# │   ├── Source: splunk://sensor_metrics (2025-09-01 to 2025-09-06)
+# │   ├── Quality: 98.2% complete, 0.3% outliers
+# │   └── Git: data-extraction@def456
+# ├── Features: features:v1.2.0 (25 features engineered)
+# │   ├── Pipeline: StandardScaler → PolynomialFeatures → SelectKBest
+# │   ├── Performance: +12% model accuracy vs v1.1.0
+# │   └── Git: feature-engineering@ghi789
+# ├── Model: xgboost:v1.3.0
+# │   ├── Algorithm: XGBoost (n_estimators=200, max_depth=6)
+# │   ├── Performance: Accuracy 94.2%, F1 93.8%
+# │   ├── Training: 45 minutes on 2025-09-07 08:00
+# │   └── Git: model-training@jkl012
+# └── Deployment: cloud-run:v1.3.0 (2025-09-07 08:30)
+#     ├── Endpoint: https://predictive-maintenance-xyz.run.app
+#     ├── Status: Active (99.9% uptime)
+#     └── Git: deployment@mno345
+```
+
+**6. Reproducibilidad Completa:**
+```python
+# Reproducir cualquier versión exacta
+reproduction = kp.reproduce.from_version("v1.3.0")
+
+# Kepler automáticamente:
+# ✅ Restaura datos exactos: sensors:v2.1.0
+# ✅ Restaura features exactas: features:v1.2.0  
+# ✅ Restaura código exacto: Git commit abc123
+# ✅ Restaura entorno exacto: requirements-v1.3.0.txt
+# ✅ Entrena modelo idéntico: mismos hiperparámetros
+# ✅ Valida reproducibilidad: métricas deben coincidir
+
+assert reproduction.model.accuracy == 0.942  # Debe ser idéntico
+```
+
+**Herramientas de Versionado Integradas:**
+- **Git**: Código, configuración, notebooks
+- **DVC**: Datos, features, artifacts grandes
+- **MLflow**: Experimentos, modelos, métricas
+- **Kepler Registry**: Metadata unificado y trazabilidad
+
+### Sistema AutoML Integrado
+
+**Filosofía: "Experimentación Automática + Control Manual"**
+
+Kepler proporciona capacidades AutoML completas para acelerar el desarrollo de modelos mientras mantiene transparencia y control:
+
+**1. Selección Automática de Algoritmos:**
+```python
+# AutoML básico - Kepler selecciona mejor algoritmo
+automl_result = kp.automl.train(data, target="objetivo")
+print(f"Mejor modelo: {automl_result.best_algorithm}")  # XGBoost
+print(f"Accuracy: {automl_result.best_score}")  # 94.2%
+
+# AutoML con restricciones
+automl_result = kp.automl.train(
+    data, 
+    target="objetivo",
+    algorithms=["sklearn", "xgboost", "lightgbm"],  # Solo ML tradicional
+    max_time="2h",  # Límite de tiempo
+    metric="f1_score"  # Métrica de optimización
+)
+```
+
+**2. Optimización de Hiperparámetros:**
+```python
+# Optimización automática con Optuna
+optimized_model = kp.automl.optimize(
+    algorithm="xgboost",
+    data=data,
+    target="objetivo",
+    trials=100,  # Número de experimentos
+    optimization_time="1h"
+)
+
+# Kepler prueba automáticamente:
+# - n_estimators: [50, 100, 200, 500]
+# - max_depth: [3, 6, 10, 15]
+# - learning_rate: [0.01, 0.1, 0.2, 0.3]
+# - subsample: [0.8, 0.9, 1.0]
+```
+
+**3. Feature Engineering Automático:**
+```python
+# AutoML con feature engineering
+automl_result = kp.automl.train(
+    data,
+    target="objetivo", 
+    auto_features=True,
+    feature_selection=True,
+    polynomial_features=True,
+    interaction_features=True
+)
+
+# Kepler automáticamente:
+# ✅ Crea features polinomiales
+# ✅ Detecta interacciones importantes
+# ✅ Selecciona features más relevantes
+# ✅ Maneja valores faltantes
+# ✅ Codifica variables categóricas
+```
+
+**4. Pipeline AutoML End-to-End:**
+```python
+# Pipeline completo automático
+pipeline = kp.automl.create_pipeline(
+    data_source=kp.data.from_splunk("search index=sensors"),
+    target="failure_prediction",
+    validation_strategy="time_series_split",
+    deployment_target="cloud_run"
+)
+
+# Kepler ejecuta automáticamente:
+# 1. Extracción y limpieza de datos
+# 2. Feature engineering automático
+# 3. Selección de algoritmos
+# 4. Optimización de hiperparámetros  
+# 5. Validación cruzada
+# 6. Deployment del mejor modelo
+# 7. Monitoreo y alertas
+```
+
+**5. Comparación y Ranking Automático:**
+```python
+# Experimentos múltiples en paralelo
+experiment = kp.automl.experiment(
+    name="sensor-failure-prediction",
+    data=sensor_data,
+    target="failure",
+    algorithms="all",  # Prueba todos los disponibles
+    parallel_jobs=4
+)
+
+# Resultados automáticos
+leaderboard = experiment.leaderboard()
+# | Rank | Algorithm | Accuracy | F1-Score | Training Time | 
+# |------|-----------|----------|----------|---------------|
+# |  1   | XGBoost   |   94.2%  |   93.8%  |     45min     |
+# |  2   | LightGBM  |   93.8%  |   93.1%  |     32min     |
+# |  3   | RandomForest | 92.1% |   91.5%  |     28min     |
+
+# Selección automática del mejor
+best_model = experiment.get_best_model()
+```
+
+**6. AutoML con Constraints Industriales:**
+```python
+# AutoML para entornos industriales
+industrial_automl = kp.automl.train(
+    data=industrial_data,
+    target="equipment_failure",
+    constraints={
+        "max_inference_time": "100ms",  # Latencia máxima
+        "model_size": "50MB",          # Tamaño máximo
+        "interpretability": "high",     # Modelos explicables
+        "robustness": True             # Resistente a outliers
+    }
+)
+
+# Kepler automáticamente:
+# ✅ Filtra modelos que no cumplen constraints
+# ✅ Optimiza para latencia vs accuracy
+# ✅ Prioriza modelos interpretables (sklearn, XGBoost)
+# ✅ Valida robustez con datos adversariales
+```
+
+**Librerías AutoML Soportadas:**
+- **Optuna**: Optimización de hiperparámetros bayesiana
+- **Hyperopt**: Optimización con algoritmos evolutivos  
+- **Auto-sklearn**: AutoML específico para scikit-learn
+- **FLAML**: Fast and Lightweight AutoML de Microsoft
+- **H2O AutoML**: AutoML distribuido (futuro)
+- **AutoGluon**: AutoML de Amazon (futuro)
+
+**Integración con MLOps:**
+- **MLflow tracking**: Todos los experimentos AutoML se registran automáticamente
+- **Experiment comparison**: Dashboards automáticos de comparación
+- **Model registry**: Mejor modelo se registra automáticamente
+- **A/B testing**: Deployment automático con comparación A/B
 
 ### Casos de Uso Reales
 
@@ -848,42 +1180,71 @@ Antes de integrar cualquier tecnología, se DEBE completar:
 10. El sistema DEBE serializar automáticamente modelos entrenados
 11. El sistema DEBE proporcionar métricas de performance automáticas
 12. El sistema DEBE soportar comparación automática entre modelos
+13. El sistema DEBE proporcionar capacidades AutoML para selección automática de algoritmos
+14. El sistema DEBE optimizar hiperparámetros automáticamente usando técnicas como Optuna/Hyperopt
+15. El sistema DEBE realizar feature engineering automático cuando sea posible
+16. El sistema DEBE ejecutar múltiples experimentos en paralelo y rankear resultados
+17. El sistema DEBE sugerir el mejor modelo basado en métricas de performance
+18. El sistema DEBE proporcionar pipelines AutoML end-to-end con un comando simple
 
 ### 4.3 Gestión de Ecosistemas
-13. El sistema DEBE crear automáticamente entornos de desarrollo aislados
-14. El sistema DEBE gestionar dependencias por proyecto automáticamente  
-15. El sistema DEBE proporcionar templates de configuración por tipo de proyecto
-16. El sistema DEBE separar completamente configuración de desarrollo/staging/producción
-17. El sistema DEBE provisionar recursos GCP automáticamente por entorno
+19. El sistema DEBE crear automáticamente entornos de desarrollo aislados
+20. El sistema DEBE gestionar dependencias por proyecto automáticamente  
+21. El sistema DEBE proporcionar templates de configuración por tipo de proyecto
+22. El sistema DEBE separar completamente configuración de desarrollo/staging/producción
+23. El sistema DEBE provisionar recursos GCP automáticamente por entorno
 
 ### 4.4 Despliegue y Producción
-18. El sistema DEBE desplegar modelos a Google Cloud Run automáticamente
-19. El sistema DEBE generar APIs REST para inferencias automáticamente
-20. El sistema DEBE configurar auto-scaling basado en demanda
-21. El sistema DEBE escribir resultados de predicciones automáticamente a Splunk HEC
-22. El sistema DEBE crear dashboards de monitoreo automáticamente
+24. El sistema DEBE desplegar modelos a Google Cloud Run automáticamente
+25. El sistema DEBE generar APIs REST para inferencias automáticamente
+26. El sistema DEBE configurar auto-scaling basado en demanda
+27. El sistema DEBE escribir resultados de predicciones automáticamente a Splunk HEC
+28. El sistema DEBE crear dashboards de monitoreo automáticamente
 
 ### 4.5 Configuración y Seguridad
-23. El sistema DEBE mantener credenciales fuera de repositorios git
-24. El sistema DEBE soportar configuración jerárquica (global/proyecto/entorno)
-25. El sistema DEBE validar conectividad y permisos automáticamente
-26. El sistema DEBE rotar credenciales automáticamente
-27. El sistema DEBE encriptar datos sensibles en tránsito y reposo
+29. El sistema DEBE mantener credenciales fuera de repositorios git
+30. El sistema DEBE soportar configuración jerárquica (global/proyecto/entorno)
+31. El sistema DEBE validar conectividad y permisos automáticamente
+32. El sistema DEBE rotar credenciales automáticamente
+33. El sistema DEBE encriptar datos sensibles en tránsito y reposo
 
 ### 4.6 Experiencia de Usuario
-28. El sistema DEBE proporcionar CLI para automatización (`kepler command`)
-29. El sistema DEBE proporcionar SDK Python para notebooks (`import kepler as kp`)
-30. El sistema DEBE integrarse nativamente con Jupyter notebooks
-31. El sistema DEBE proporcionar autocompletado y type hints
-32. El sistema DEBE mostrar mensajes de error claros y accionables
-33. El sistema DEBE proporcionar logging configurable por nivel
+34. El sistema DEBE proporcionar CLI para automatización (`kepler command`)
+35. El sistema DEBE proporcionar SDK Python para notebooks (`import kepler as kp`)
+36. El sistema DEBE integrarse nativamente con Jupyter notebooks
+37. El sistema DEBE proporcionar autocompletado y type hints
+38. El sistema DEBE mostrar mensajes de error claros y accionables
+39. El sistema DEBE proporcionar logging configurable por nivel
 
-### 4.7 Extensibilidad
-34. El sistema DEBE soportar plugins dinámicos sin modificar core
-35. El sistema DEBE proporcionar API para adaptadores personalizados
-36. El sistema DEBE soportar múltiples clouds (GCP, AWS, Azure)
-37. El sistema DEBE permitir deployment en edge devices
-38. El sistema DEBE proporcionar hooks para integraciones externas
+### 4.7 Gestión de Proyectos y Estructura Profesional
+40. El sistema DEBE mantener estructura de proyecto profesional y organizada
+41. El sistema DEBE separar claramente documentación de usuario vs desarrollo
+42. El sistema DEBE evitar duplicación de documentos y mantener una sola fuente de verdad
+43. El sistema DEBE actualizar automáticamente fechas y versiones en documentación
+44. El sistema DEBE limpiar automáticamente archivos temporales y basura de desarrollo
+45. El sistema DEBE mantener .gitignore actualizado para prevenir commits accidentales
+
+### 4.8 Versionado y Gestión de Modelos
+46. El sistema DEBE proporcionar versionado automático de modelos con timestamps
+47. El sistema DEBE permitir versionado manual cuando el usuario lo especifique
+48. El sistema DEBE sugerir versiones inteligentes basadas en contexto del proyecto
+49. El sistema DEBE integrar versionado con sistemas Git y MLOps
+50. El sistema DEBE mantener trazabilidad completa desde datos hasta deployment
+51. El sistema DEBE optimizar automáticamente dependencias para producción
+
+### 4.9 Gestión de Dependencias y Librerías
+52. El sistema DEBE aislar entornos por proyecto automáticamente
+53. El sistema DEBE soportar instalación desde cualquier fuente Python
+54. El sistema DEBE crear automáticamente requirements optimizados para producción
+55. El sistema DEBE resolver conflictos de dependencias automáticamente
+56. El sistema DEBE mantener entornos ricos para desarrollo y ligeros para producción
+
+### 4.10 Extensibilidad
+57. El sistema DEBE soportar plugins dinámicos sin modificar core
+58. El sistema DEBE proporcionar API para adaptadores personalizados
+59. El sistema DEBE soportar múltiples clouds (GCP, AWS, Azure)
+60. El sistema DEBE permitir deployment en edge devices
+61. El sistema DEBE proporcionar hooks para integraciones externas
 
 ## 5. Non-Goals (Out of Scope)
 
@@ -1036,76 +1397,66 @@ Antes de integrar cualquier tecnología, se DEBE completar:
 
 ### Roadmap de Implementación
 
-#### Fase 1 (Septiembre-Octubre 2025): Core ML Training
-1. Implementar `kepler.train` module (sklearn + XGBoost básico)
-2. Validar primer modelo end-to-end con datos reales
-3. Crear sistema de serialización y versionado de modelos
-4. Documentar patrones de entrenamiento
+#### M1 (Septiembre-Octubre 2025): Core AI Training Ecosystem ✅ 67% COMPLETADO
+1. ✅ Unlimited Python library support (Task 1.1-1.3)
+2. ✅ AI framework wrappers: ML + DL + GenAI (Task 1.4-1.6)
+3. ✅ Custom library integration (Task 1.7)
+4. ✅ Unified training API (Task 1.8-1.10)
+5. ⏳ AutoML basic capabilities (Task 1.11-1.15) - EN PROGRESO
 
-#### Fase 2 (Octubre-Noviembre 2025): Ecosystem Management  
-1. Crear `kepler env` commands para gestión de entornos
-2. Implementar templates de configuración por proyecto
-3. Automatizar provisioning de recursos GCP
-4. Separación completa dev/staging/prod
+#### M2 (Octubre-Noviembre 2025): MLOps Versioning and Reproducibility
+1. Data versioning con DVC/Pachyderm (Task 5.1-5.2)
+2. Experiment tracking con MLflow (Task 5.3-5.4)
+3. End-to-end traceability y lineage (Task 5.5-5.6)
+4. Release management multi-component (Task 5.7)
 
-#### Fase 3 (Noviembre-Diciembre 2025): Deployment Automation
-1. Implementar `kepler.deploy` module para Cloud Run
-2. Crear APIs REST automáticas para modelos
-3. Configurar auto-scaling y monitoring
-4. Pipeline automático de resultados a Splunk
+#### M3 (Noviembre-Diciembre 2025): Core Deployment (REORDENADO)
+1. Cloud Run deployment automático (Task 6.1-6.5)
+2. FastAPI + health checks (Task 6.6)
+3. Splunk results pipeline (Task 6.7)
+4. End-to-end deployment testing (Task 6.8-6.10)
 
-#### Fase 4 (Diciembre 2025-Enero 2026): Edge Computing Expansion
-1. **Barbara IoT Integration** (Prioridad #1 después de GCP):
-   - **Research Phase**: Documentación oficial Barbara IoT SDK, deployment patterns
-   - **Barbara IoT SDK**: Native integration para edge deployment
-   - **Edge ML**: Model optimization para edge devices
-   - **Offline capabilities**: Sync cuando hay conectividad
-   - **Device management**: Fleet management desde Kepler
+#### M4 (Diciembre 2025-Enero 2026): Essential Validation (MOVED UP)
+1. Ecosystem validation con mensajes accionables (Task 7.1-7.3)
+2. GCP + Splunk validation completa (Task 7.4-7.5)
+3. kepler validate + kepler diagnose CLI (Task 7.6-7.8)
+4. Troubleshooting automation (Task 7.9-7.10)
 
-2. **Splunk Edge Hub Integration**:
-   - **Research Phase**: Documentación oficial Splunk Edge Hub APIs
-   - **Edge data processing**: Local processing con sync a Splunk
-   - **Hybrid architecture**: Edge + Cloud seamless
+#### M5 (Enero-Febrero 2026): AutoML Intelligence (REORDENADO)
+1. Algorithm selection automática con ranking (Task 8.1-8.4)
+2. Hyperparameter optimization con Optuna (Task 8.5-8.7)
+3. kepler automl run con promote-to-deploy (Task 8.8-8.10)
+4. Industrial constraints y performance benchmarking
 
-3. **Additional Edge Platforms**:
-   - **NVIDIA Jetson**: AI inference optimization
-   - **Raspberry Pi**: Lightweight deployment
-   - **Industrial PCs**: Factory floor deployment
+#### M6 (Febrero-Marzo 2026): Advanced Deep Learning
+1. CNN/RNN/LSTM architectures avanzadas (Task 9.1-9.3)
+2. GPU acceleration y CUDA validation (Task 9.4-9.5)
+3. Computer Vision y NLP workflows (Task 9.9)
+4. GPU deployment guides y performance benchmarks (Task 9.8)
 
-#### Fase 5 (Enero-Marzo 2026): Azure Cloud Expansion
-1. **Azure Support** (Después de Edge Computing):
-   - **Research Phase**: Documentación oficial `azure-sdk-for-python`, Azure ML APIs
-   - **Data sources**: Blob Storage, SQL Database, Cosmos DB, Synapse Analytics
-   - **Compute**: Azure Functions, Container Instances, Azure ML Compute
-   - **Deployment**: Azure ML, AKS, Azure Container Apps
-   - **Monitoring**: Azure Monitor, Application Insights
+#### M7 (Marzo-Mayo 2026): Multi-Cloud Expansion
+1. Azure SDK integration y deployment patterns (Task 10.1-10.2)
+2. AWS boto3 integration y SageMaker patterns (Task 10.3-10.5)
+3. Cross-cloud orchestration y cost optimization (Task 10.6-10.8)
+4. Multi-cloud monitoring y performance parity (Task 10.9-10.10)
 
-#### Fase 6 (Marzo-Mayo 2026): AWS Support
-1. **AWS Support** (Última cloud platform):
-   - **Research Phase**: Documentación oficial `boto3`, AWS service SDKs
-   - **Data sources**: S3, RDS, Redshift, DynamoDB
-   - **Compute**: Lambda, ECS, SageMaker
-   - **Deployment**: AWS Batch, EKS, AWS App Runner
+#### M8 (Mayo-Junio 2026): Edge Computing Integration
+1. Barbara IoT SDK integration (Task 11.1-11.4)
+2. Splunk Edge Hub hybrid processing (Task 11.5-11.7)
+3. Edge fleet management y offline sync (Task 11.8-11.10)
+4. Edge deployment automation y monitoring
 
-#### Fase 7 (Mayo-Julio 2026): MLOps Stack Completo
-1. **MLOps Integration** (Después de todas las clouds):
-   - **MLflow**: Complete tracking, registry, serving
-   - **FastAPI**: Automatic model API generation
-   - **Docker**: Universal containerization
-   - **Monitoring Stack**: Implementar estrategia híbrida definida
+#### M9 (Junio-Julio 2026): Professional Monitoring
+1. OpenTelemetry unified observability (Task 12.1-12.2)
+2. Prometheus + Grafana automation (Task 12.3-12.4)
+3. Hybrid monitoring strategy implementation (Task 12.5-12.7)
+4. Advanced observability (InfluxDB/ELK después de OTel estable)
 
-2. **Ecosystem Validation System**:
-   - **kepler validate ecosystem**: Validación completa de todas las plataformas
-   - **kepler setup <platform>**: Configuración asistida por plataforma
-   - **kepler diagnose**: Troubleshooting automático inteligente
-   - **Secure credential management**: Encriptación AES-256, no plain passwords
-
-3. **Automatic Documentation Generation**:
-   - **kepler docs generate**: Documentación automática completa
-   - **Templates por industria**: Manufacturing, Financial, Healthcare, Retail
-   - **Export formats**: PDF, Notion, Confluence, HTML interactivo
-   - **IA Generativa opcional**: OpenAI/Claude/Gemini integration
-   - **Continuous documentation**: Auto-update durante desarrollo
+#### M10 (Julio-Agosto 2026): Documentation Excellence
+1. Automatic documentation generation (Task 13.1-13.3)
+2. Industry templates y professional formatting (Task 13.4-13.6)
+3. Interactive dashboards y AI insights (Task 13.7-13.10)
+4. Continuous documentation y delivery automation
 
 #### Fase 7 (2026): Data Sources & Ecosystem Completo
 1. **Database Connectors**: PostgreSQL, MySQL, MongoDB, Cassandra

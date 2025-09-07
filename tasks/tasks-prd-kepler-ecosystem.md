@@ -1,7 +1,7 @@
 # Task List - Kepler Framework Ecosystem Implementation
 
 > **Based on:** prd-kepler-ecosystem.md  
-> **Generated:** 6 de Septiembre de 2025  
+> **Generated:** 7 de Septiembre de 2025  
 > **Target:** Complete ecosystem implementation per PRD specifications
 
 ## Relevant Files
@@ -13,11 +13,25 @@
 - `kepler/trainers/deep_learning_trainers.py` - Deep learning trainers (PyTorch, TensorFlow, Keras, JAX)
 - `kepler/trainers/generative_ai_trainers.py` - Generative AI trainers (transformers, langchain, OpenAI APIs)
 - `kepler/trainers/specialized_trainers.py` - Computer Vision, NLP, Time Series, RL trainers
+- `kepler/automl/` - AutoML system for automatic model selection and optimization
+- `kepler/automl/algorithm_selector.py` - Automatic algorithm selection and ranking
+- `kepler/automl/hyperparameter_optimizer.py` - Optuna-based hyperparameter optimization
+- `kepler/automl/feature_engineer.py` - Automatic feature engineering and selection
+- `kepler/automl/experiment_runner.py` - Parallel experiment execution and comparison
 
 ### Library Management & Dependencies  
 - `kepler/core/library_manager.py` - Unlimited Python library support system
 - `kepler/core/dependency_resolver.py` - Multi-source dependency management
 - `kepler/core/environment_manager.py` - Project isolation and environment management
+
+### Versioning & MLOps Integration
+- `kepler/versioning/` - Complete MLOps versioning system
+- `kepler/versioning/data_versioner.py` - DVC/Pachyderm data versioning integration
+- `kepler/versioning/feature_versioner.py` - Feature engineering pipeline versioning
+- `kepler/versioning/experiment_tracker.py` - MLflow experiment tracking integration
+- `kepler/versioning/lineage_tracker.py` - End-to-end traceability and lineage
+- `kepler/versioning/reproduction_manager.py` - Complete reproduction system
+- `kepler/versioning/release_manager.py` - Multi-component release management
 
 ### Multi-Platform Integration
 - `kepler/connectors/splunk.py` - Splunk connectivity (implemented)
@@ -54,6 +68,55 @@
 - Edge computing integration with Barbara IoT and Splunk Edge Hub is completely new
 - Documentation generation must work for any AI project type (ML, DL, GenAI, CV, NLP)
 
+## Milestone Definition of Done (DoD) - Senior Developer Recommendations
+
+### M1 DoD (Task 1.0): Core AI Training Ecosystem
+- **Functional**: `kepler train` works with library installed from GitHub private repo
+- **Technical**: Unified API stable and tested with 95%+ test coverage
+- **User**: Ana can train models with sklearn + XGBoost + PyTorch from any library source
+- **Quality**: All unit tests pass, integration tests with real Splunk data
+
+### M2 DoD (Task 5.0): MLOps Versioning
+- **Functional**: `kepler version release` and `kepler reproduce` generate/recover experiments
+- **Technical**: Lock files ensure 100% reproducible environments
+- **User**: Ana can reproduce any experiment exactly with one command
+- **Quality**: Versioning works with Git + DVC + MLflow integration
+
+### M3 DoD (Task 6.0): Core Deployment
+- **Functional**: `kepler deploy --cloud gcp` publishes endpoint with healthz/readyz
+- **Technical**: Automatic Dockerfile generation for any AI framework
+- **User**: Ana can deploy any trained model to production with one command
+- **Quality**: Events written to Splunk, monitoring dashboards auto-created
+
+### M4 DoD (Task 7.0): Essential Validation (MOVED UP for DX)
+- **Functional**: `kepler validate` with actionable error messages for all issues
+- **Technical**: 100% tracing of connectivity, auth, and configuration issues
+- **User**: Ana can diagnose and fix any setup problem independently
+- **Quality**: Comprehensive troubleshooting guides and automated fixes
+
+### M5 DoD (Task 8.0): AutoML Intelligence
+- **Functional**: `kepler automl run` generates top-N models with performance report
+- **Technical**: "promote to deploy" pipeline from experiment to production
+- **User**: Ana can find optimal model automatically without manual tuning
+- **Quality**: AutoML outperforms manual tuning in 80%+ cases
+
+### M6 DoD (Task 9.0): Advanced Deep Learning
+- **Functional**: CNN/TF models trained and deployed (CPU-optimized)
+- **Technical**: GPU usage guide validated, deployment path clear
+- **User**: Ana can work with computer vision and advanced neural networks
+- **Quality**: GPU vs CPU performance benchmarked and documented
+
+### M7 DoD (Task 10.0): Multi-Cloud Mastery
+- **Functional**: Reproducible recipes for Azure/AWS deployment
+- **Technical**: Stable GPU path (Vertex AI/GKE) for complex models
+- **User**: Ana can deploy to any cloud with consistent experience
+- **Quality**: Cost optimization and performance parity across clouds
+
+### M8-M10 DoD: Advanced Capabilities
+- **M8**: Edge computing with Barbara IoT + Splunk Edge Hub integration
+- **M9**: Professional monitoring with OpenTelemetry + hybrid strategy
+- **M10**: Automated documentation generation with industry templates
+
 ## Tasks
 
 - [ ] 1.0 Complete AI & Data Science Training Ecosystem (Phase 1 - Current Priority)
@@ -67,6 +130,11 @@
   - [ ] 1.8 Create unified training API that works with ANY framework
   - [ ] 1.9 Add comprehensive testing with multiple AI framework types
   - [ ] 1.10 Update CLI to support unlimited library ecosystem
+  - [ ] 1.11 Implement AutoML system for automatic algorithm selection
+  - [ ] 1.12 Create hyperparameter optimization with Optuna integration
+  - [ ] 1.13 Add automatic feature engineering and selection capabilities
+  - [ ] 1.14 Implement parallel experiment execution and model ranking
+  - [ ] 1.15 Create AutoML pipeline with industrial constraints support
 
 - [ ] 2.0 Implement Deep Learning Framework Support
   - [ ] 2.1 Research PyTorch official documentation and deployment patterns
@@ -104,75 +172,109 @@
   - [ ] 4.9 Create specialized data preprocessing for vision and text data
   - [ ] 4.10 Add integration with computer vision and NLP model serving
 
-- [ ] 5.0 Create Unlimited Library Dependency Management System
-  - [ ] 5.1 Design architecture for supporting ANY Python library source
-  - [ ] 5.2 Create kepler/core/library_manager.py for dynamic library management
-  - [ ] 5.3 Implement PyPI library installation and management
-  - [ ] 5.4 Implement GitHub/GitLab repository library installation (git+https://)
-  - [ ] 5.5 Implement private repository support with SSH authentication
-  - [ ] 5.6 Create local custom library support (-e ./custom-libs/)
-  - [ ] 5.7 Implement wheel/tar file installation for compiled libraries
-  - [ ] 5.8 Create environment isolation per project (venv, conda, docker)
-  - [ ] 5.9 Implement dependency conflict resolution and validation
-  - [ ] 5.10 Add CLI commands for library management (kepler libs install, update, list)
+- [ ] 5.0 Complete MLOps Versioning and Reproducibility System
+  - [ ] 5.1 Implement data versioning with DVC/Pachyderm integration
+  - [ ] 5.2 Create feature engineering pipeline versioning system
+  - [ ] 5.3 Implement experiment tracking with MLflow integration
+  - [ ] 5.4 Create Git + DVC + MLflow unified versioning system
+  - [ ] 5.5 Add complete end-to-end traceability and lineage tracking
+  - [ ] 5.6 Implement reproduction system for any version (kp.reproduce.from_version)
+  - [ ] 5.7 Create release management with multi-component versioning
+  - [ ] 5.8 Implement intelligent model versioning system (DEFERRED to M5+)
+  - [ ] 5.9 Create context-aware version suggestions (DEFERRED to M5+)
 
-- [ ] 6.0 Create Ecosystem Validation and Platform Management System
-  - [ ] 6.1 Design validation architecture for multi-platform support (Splunk, GCP, Azure, AWS, Barbara IoT)
-  - [ ] 6.2 Create kepler/core/ecosystem_validator.py module
-  - [ ] 6.3 Implement Splunk connectivity validation with detailed error reporting
-  - [ ] 6.4 Implement GCP authentication and service validation
-  - [ ] 6.5 Create Barbara IoT connectivity validation (research Barbara IoT SDK first)
-  - [ ] 6.6 Implement secure credential management with AES-256 encryption
-  - [ ] 6.7 Create kepler validate ecosystem CLI command
-  - [ ] 6.8 Implement kepler setup <platform> guided configuration commands
-  - [ ] 6.9 Create kepler diagnose intelligent troubleshooting system
-  - [ ] 6.10 Add validation integration tests with real platforms
+- [ ] 6.0 Core Deployment and Cloud Integration (M3 - PRIORITY)
+  - [ ] 6.1 Research Google Cloud Run Python SDK and deployment patterns
+  - [ ] 6.2 Create kepler/deployers/cloud_run_deployer.py module
+  - [ ] 6.3 Implement automatic Dockerfile generation for any AI framework
+  - [ ] 6.4 Implement FastAPI wrapper generation for any model type
+  - [ ] 6.5 Create GCP Cloud Run deployment for ANY AI model type
+  - [ ] 6.6 Implement automatic model serving with health checks (healthz/readyz)
+  - [ ] 6.7 Create results writing pipeline back to Splunk
+  - [ ] 6.8 Add deployment CLI commands (kepler deploy --cloud gcp)
+  - [ ] 6.9 Implement deployment monitoring and status tracking
+  - [ ] 6.10 Create end-to-end deployment integration tests
 
-- [ ] 7.0 Implement Multi-Cloud Deployment Automation (GCP, Azure, AWS)
-  - [ ] 7.1 Research Google Cloud Run Python SDK and deployment patterns
-  - [ ] 7.2 Research Azure SDK for Python and Azure ML deployment patterns  
-  - [ ] 7.3 Create kepler/deployers/multi_cloud_deployer.py module
-  - [ ] 7.4 Implement GCP Cloud Run deployment for ANY AI model type
-  - [ ] 7.5 Implement Azure Functions deployment for lightweight models
-  - [ ] 7.6 Implement Azure ML deployment for complex AI workflows
-  - [ ] 7.7 Create automatic Dockerfile generation for any AI framework
-  - [ ] 7.8 Implement FastAPI wrapper generation for any model type
-  - [ ] 7.9 Add cross-cloud deployment orchestration and management
-  - [ ] 7.10 Create unified deployment CLI commands (kepler deploy --cloud gcp|azure|aws)
+- [ ] 7.0 Essential Ecosystem Validation (M4 - MOVED UP for DX)
+  - [ ] 7.1 Design validation architecture for core platforms (Splunk, GCP)
+  - [ ] 7.2 Create kepler/core/ecosystem_validator.py module
+  - [ ] 7.3 Implement Splunk connectivity validation with actionable error messages
+  - [ ] 7.4 Implement GCP authentication and service validation
+  - [ ] 7.5 Implement secure credential management with AES-256 encryption
+  - [ ] 7.6 Create kepler validate ecosystem CLI command
+  - [ ] 7.7 Implement kepler setup <platform> guided configuration commands
+  - [ ] 7.8 Create kepler diagnose intelligent troubleshooting system
+  - [ ] 7.9 Add validation integration tests with real platforms
+  - [ ] 7.10 Create comprehensive validation documentation and troubleshooting guides
 
-- [ ] 8.0 Create Edge Computing Support (Barbara IoT + Splunk Edge Hub)
-  - [ ] 8.1 Research Barbara IoT SDK documentation and deployment patterns
-  - [ ] 8.2 Research Splunk Edge Hub APIs and integration methods
-  - [ ] 8.3 Create kepler/deployers/barbara_iot_deployer.py module
-  - [ ] 8.4 Implement Barbara IoT SDK integration for edge deployment
-  - [ ] 8.5 Create edge model optimization for resource-constrained devices
-  - [ ] 8.6 Implement offline capabilities with sync-when-connected functionality
-  - [ ] 8.7 Create Splunk Edge Hub integration for hybrid edge-cloud processing
-  - [ ] 8.8 Implement fleet management capabilities for multiple edge devices
-  - [ ] 8.9 Add edge deployment CLI commands (kepler deploy --target barbara-iot)
-  - [ ] 8.10 Create edge monitoring and health check systems
+- [ ] 8.0 AutoML and Intelligent Experimentation (M5 - After E2E Complete)
+  - [ ] 8.1 Research Optuna documentation and hyperparameter optimization patterns
+  - [ ] 8.2 Create kepler/automl/ module structure
+  - [ ] 8.3 Implement automatic algorithm selection and ranking system
+  - [ ] 8.4 Create hyperparameter optimization with Optuna integration
+  - [ ] 8.5 Add automatic feature engineering and selection capabilities
+  - [ ] 8.6 Implement parallel experiment execution and model ranking
+  - [ ] 8.7 Create AutoML pipeline with industrial constraints support
+  - [ ] 8.8 Add kepler automl run CLI command with top-N reporting
+  - [ ] 8.9 Implement "promote to deploy" functionality for best models
+  - [ ] 8.10 Create AutoML integration tests and validation
 
-- [ ] 9.0 Build Automatic Documentation Generation System
-  - [ ] 9.1 Design documentation generation architecture for AI projects
-  - [ ] 9.2 Create kepler/core/documentation_generator.py module
-  - [ ] 9.3 Implement project analysis and metadata extraction for any AI framework
-  - [ ] 9.4 Create industry-specific documentation templates (Manufacturing, Financial, Healthcare, Retail)
-  - [ ] 9.5 Implement PDF export functionality with professional formatting
-  - [ ] 9.6 Create Notion API integration for workspace export
-  - [ ] 9.7 Implement Confluence API integration for documentation publishing
-  - [ ] 9.8 Add interactive HTML dashboard generation for AI projects
-  - [ ] 9.9 Create kepler docs generate CLI command
-  - [ ] 9.10 Implement continuous documentation updates during development
-  - [ ] 9.11 Add optional AI-powered insights generation (OpenAI/Claude integration)
+- [ ] 9.0 Advanced Deep Learning Support (M6 - After Core E2E)
+  - [ ] 9.1 Research advanced PyTorch patterns and GPU optimization
+  - [ ] 9.2 Research TensorFlow/Keras production deployment patterns
+  - [ ] 9.3 Create advanced neural network architectures (CNN, RNN, LSTM, Transformers)
+  - [ ] 9.4 Implement GPU acceleration and CUDA support validation
+  - [ ] 9.5 Create model optimization and pruning for production
+  - [ ] 9.6 Add distributed training support for large models (DEFERRED)
+  - [ ] 9.7 Implement advanced deep learning model serialization
+  - [ ] 9.8 Create GPU deployment validation and guides
+  - [ ] 9.9 Add computer vision and NLP specialized workflows
+  - [ ] 9.10 Create deep learning deployment integration tests
 
-- [ ] 10.0 Implement Hybrid Monitoring and Observability System
-  - [ ] 10.1 Research Prometheus, Grafana, InfluxDB, and Elasticsearch integration patterns
-  - [ ] 10.2 Design hybrid monitoring strategy (Splunk for business data, dedicated stack for telemetry)
-  - [ ] 10.3 Create kepler/monitoring/ module structure
-  - [ ] 10.4 Implement Prometheus metrics collection for AI model performance
-  - [ ] 10.5 Create Grafana dashboard automation via API for technical metrics
-  - [ ] 10.6 Implement InfluxDB integration for system and model metrics
-  - [ ] 10.7 Create automatic routing system (business data → Splunk, telemetry → dedicated stack)
-  - [ ] 10.8 Implement Elasticsearch integration for AI model logs and debugging
-  - [ ] 10.9 Create monitoring dashboard generation for any AI framework type
-  - [ ] 10.10 Add alerting and notification system for AI model performance and drift
+- [ ] 10.0 Multi-Cloud Expansion (M7 - After GCP Mastery)
+  - [ ] 10.1 Research Azure SDK for Python and deployment patterns
+  - [ ] 10.2 Research AWS boto3 and SageMaker deployment patterns
+  - [ ] 10.3 Create kepler/deployers/multi_cloud_deployer.py module
+  - [ ] 10.4 Implement Azure Functions/ML deployment for AI models
+  - [ ] 10.5 Implement AWS Lambda/SageMaker deployment for AI models
+  - [ ] 10.6 Create cross-cloud deployment orchestration and management
+  - [ ] 10.7 Add multi-cloud CLI commands (kepler deploy --cloud azure|aws)
+  - [ ] 10.8 Implement cloud cost optimization and resource management
+  - [ ] 10.9 Create multi-cloud monitoring and observability
+  - [ ] 10.10 Add multi-cloud integration tests and validation
+
+- [ ] 11.0 Edge Computing and IoT Integration (M8 - After Multi-Cloud)
+  - [ ] 11.1 Research Barbara IoT SDK documentation and deployment patterns
+  - [ ] 11.2 Research Splunk Edge Hub APIs and integration methods
+  - [ ] 11.3 Create kepler/deployers/edge_deployer.py module
+  - [ ] 11.4 Implement Barbara IoT SDK integration for edge deployment
+  - [ ] 11.5 Create edge model optimization for resource-constrained devices
+  - [ ] 11.6 Implement offline capabilities with sync-when-connected functionality
+  - [ ] 11.7 Create Splunk Edge Hub integration for hybrid processing
+  - [ ] 11.8 Add edge deployment CLI commands (kepler deploy --target edge)
+  - [ ] 11.9 Implement edge fleet management and monitoring
+  - [ ] 11.10 Create edge computing integration tests and validation
+
+- [ ] 12.0 Advanced Monitoring and Observability (M9 - After Edge)
+  - [ ] 12.1 Research OpenTelemetry integration patterns for unified observability
+  - [ ] 12.2 Create kepler/monitoring/ module structure with OTel foundation
+  - [ ] 12.3 Implement Prometheus metrics collection for AI model performance
+  - [ ] 12.4 Create Grafana dashboard automation via API for technical metrics
+  - [ ] 12.5 Implement hybrid routing (business data → Splunk, telemetry → OTel stack)
+  - [ ] 12.6 Create monitoring dashboard generation for any AI framework type
+  - [ ] 12.7 Add alerting and notification system for AI model performance and drift
+  - [ ] 12.8 Implement InfluxDB integration (DEFERRED until OTel+Prom stable)
+  - [ ] 12.9 Implement Elasticsearch integration (DEFERRED until core monitoring stable)
+  - [ ] 12.10 Create comprehensive monitoring documentation and best practices
+
+- [ ] 13.0 Documentation Generation and Professional Delivery (M10)
+  - [ ] 13.1 Design documentation generation architecture for AI projects
+  - [ ] 13.2 Create kepler/core/documentation_generator.py module
+  - [ ] 13.3 Implement project analysis and metadata extraction for any AI framework
+  - [ ] 13.4 Create industry-specific documentation templates
+  - [ ] 13.5 Implement PDF export functionality with professional formatting
+  - [ ] 13.6 Create Notion/Confluence API integration for workspace export
+  - [ ] 13.7 Add interactive HTML dashboard generation for AI projects
+  - [ ] 13.8 Create kepler docs generate CLI command
+  - [ ] 13.9 Implement continuous documentation updates during development
+  - [ ] 13.10 Add optional AI-powered insights generation (OpenAI/Claude integration)

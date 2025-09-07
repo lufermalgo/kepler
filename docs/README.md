@@ -65,11 +65,11 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
 
 | Documento | Estado | Audiencia | Última Actualización |
 |-----------|--------|-----------|---------------------|
-| README.md principal | ✅ Actualizado | Usuarios nuevos | Diciembre 2024 |
-| CLI_GUIDE.md | ✅ Completo | DevOps/Ingenieros | Diciembre 2024 |
-| SDK_GUIDE.md | ✅ Completo | Científicos de datos | Diciembre 2024 |
-| VALIDATION_STATUS.md | ✅ Actual | Desarrolladores | Diciembre 2024 |
-| Notebooks de ejemplo | ✅ Validados | Científicos de datos | Diciembre 2024 |
+| README.md principal | ✅ Actualizado | Usuarios nuevos | Septiembre 2025 |
+| CLI_GUIDE.md | ✅ Completo | DevOps/Ingenieros | Septiembre 2025 |
+| SDK_GUIDE.md | ✅ Completo | Científicos de datos | Septiembre 2025 |
+| VALIDATION_STATUS.md | ✅ Actual | Desarrolladores | Septiembre 2025 |
+| Notebooks de ejemplo | ✅ Validados | Científicos de datos | Septiembre 2025 |
 
 ---
 

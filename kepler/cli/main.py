@@ -622,27 +622,53 @@ def train(
     data_file: str = typer.Argument(..., help="CSV file with training data"),
     target: str = typer.Option("target", "--target", "-t", help="Target column name"),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Output model file"),
-    algorithm: str = typer.Option("random_forest", "--algorithm", "-a", help="ML algorithm to use"),
+    algorithm: str = typer.Option("auto", "--algorithm", "-a", help="Algorithm: auto, random_forest, xgboost, pytorch, transformers, etc."),
     test_size: float = typer.Option(0.2, "--test-size", help="Test set size (0.0-1.0)"),
     random_state: int = typer.Option(42, "--random-state", help="Random seed for reproducibility"),
     cv: bool = typer.Option(False, "--cv", help="Use cross-validation"),
-    cv_folds: int = typer.Option(5, "--cv-folds", help="Number of CV folds")
+    cv_folds: int = typer.Option(5, "--cv-folds", help="Number of CV folds"),
+    # Deep Learning parameters
+    epochs: int = typer.Option(100, "--epochs", help="Number of training epochs (Deep Learning)"),
+    batch_size: int = typer.Option(32, "--batch-size", help="Batch size (Deep Learning)"),
+    learning_rate: float = typer.Option(0.001, "--learning-rate", help="Learning rate (Deep Learning)"),
+    # Generative AI parameters  
+    text_column: Optional[str] = typer.Option(None, "--text-column", help="Text column name (Generative AI)"),
+    model_name: Optional[str] = typer.Option(None, "--model-name", help="Pre-trained model name (Generative AI)"),
+    # General parameters
+    unified: bool = typer.Option(True, "--unified/--legacy", help="Use unified training API")
 ) -> None:
     """
-    Train a machine learning model on provided data.
+    Train an AI model using ANY framework with unified or legacy API.
     
-    Loads data, trains model, evaluates performance, and saves the trained model.
+    Supports unlimited AI frameworks:
+    - Traditional ML: random_forest, xgboost, lightgbm, catboost
+    - Deep Learning: pytorch, tensorflow, keras (with --epochs, --batch-size)
+    - Generative AI: transformers, langchain (with --text-column, --model-name)
+    - Auto-selection: algorithm=auto (analyzes data and chooses best)
+    
+    Examples:
+      kepler train data.csv --target failure --algorithm auto
+      kepler train data.csv --target failure --algorithm xgboost
+      kepler train data.csv --target failure --algorithm pytorch --epochs 50
+      kepler train text_data.csv --target sentiment --algorithm transformers --text-column review
     """
-    from kepler.trainers.base import TrainingConfig
-    from kepler.trainers.sklearn_trainers import create_trainer
-    from kepler.utils.data_validator import validate_dataframe_for_ml
-    from kepler.utils.exceptions import ModelTrainingError, DataExtractionError
     import pandas as pd
     from pathlib import Path
     from rich.table import Table
     
     logger = get_logger()
-    logger.info(f"Starting model training: {algorithm} on {data_file}")
+    logger.info(f"Starting AI model training: {algorithm} on {data_file}")
+    
+    if unified:
+        # Use new unified training API (default)
+        from kepler.train_unified import train as unified_train, get_algorithm_info
+        from kepler.utils.exceptions import ModelTrainingError
+    else:
+        # Use legacy training API
+        from kepler.trainers.base import TrainingConfig
+        from kepler.trainers.sklearn_trainers import create_trainer
+        from kepler.utils.data_validator import validate_dataframe_for_ml
+        from kepler.utils.exceptions import ModelTrainingError, DataExtractionError
     
     try:
         # Validate we're in a Kepler project
@@ -687,25 +713,82 @@ def train(
             if not typer.confirm("Continue training anyway?"):
                 raise typer.Exit(1)
         
-        # Create training configuration
-        config = TrainingConfig(
-            algorithm=algorithm,
-            target_column=target,
-            test_size=test_size,
-            random_state=random_state,
-            model_output_path=output,
-            cross_validation=cv,
-            cv_folds=cv_folds
-        )
-        
-        # Create and configure trainer
-        rprint(f"🤖 Initializing [cyan]{algorithm}[/cyan] trainer...")
-        trainer = create_trainer(algorithm, config)
-        
-        # Train model
-        rprint("🚀 Training model...")
-        with console.status("Training in progress...", spinner="dots"):
-            result = trainer.train(df)
+        if unified:
+            # Use unified training API (default)
+            rprint(f"🤖 Using unified training API for [cyan]{algorithm}[/cyan]...")
+            
+            if algorithm != "auto":
+                # Show framework info
+                try:
+                    framework_info = get_algorithm_info(algorithm)
+                    rprint(f"   🔧 Framework: {framework_info['framework']}")
+                    rprint(f"   📋 Type: {framework_info['type'].value}")
+                except Exception:
+                    pass
+            
+            # Prepare unified parameters
+            unified_params = {
+                'data': df,
+                'target': target,
+                'algorithm': algorithm,
+                'test_size': test_size,
+                'random_state': random_state
+            }
+            
+            # Add framework-specific parameters
+            if epochs != 100:  # Non-default epochs
+                unified_params['epochs'] = epochs
+            if batch_size != 32:  # Non-default batch_size
+                unified_params['batch_size'] = batch_size
+            if learning_rate != 0.001:  # Non-default learning_rate
+                unified_params['learning_rate'] = learning_rate
+            if text_column:
+                unified_params['text_column'] = text_column
+            if model_name:
+                unified_params['model_name'] = model_name
+            
+            # Train model with unified API
+            rprint("🚀 Training model with unified API...")
+            with console.status("Training in progress...", spinner="dots"):
+                model = unified_train(**unified_params)
+            
+            # Convert to legacy result format for display
+            class UnifiedResult:
+                def __init__(self, model):
+                    self.model = model
+                    self.model_path = getattr(model, 'filepath', None)
+                    self.metrics = getattr(model, 'performance', {})
+                    self.training_time = 0  # TODO: Add timing to unified API
+                    self.feature_names = getattr(model, 'feature_columns', [])
+                    self.target_name = getattr(model, 'target_column', target)
+                    self.model_type = getattr(model, 'model_type', 'unknown')
+                    self.hyperparameters = {}
+            
+            result = UnifiedResult(model)
+            
+        else:
+            # Use legacy training API
+            from kepler.utils.data_validator import validate_dataframe_for_ml
+            
+            # Create training configuration
+            config = TrainingConfig(
+                algorithm=algorithm,
+                target_column=target,
+                test_size=test_size,
+                random_state=random_state,
+                model_output_path=output,
+                cross_validation=cv,
+                cv_folds=cv_folds
+            )
+            
+            # Create and configure trainer
+            rprint(f"🤖 Initializing [cyan]{algorithm}[/cyan] trainer (legacy API)...")
+            trainer = create_trainer(algorithm, config)
+            
+            # Train model
+            rprint("🚀 Training model...")
+            with console.status("Training in progress...", spinner="dots"):
+                result = trainer.train(df)
         
         # Display results
         rprint(f"✅ Training completed in [green]{result.training_time:.2f} seconds[/green]")
@@ -805,11 +888,16 @@ def predict(
 # Library Management Commands - Unlimited Python Library Support
 @app.command()
 def libs(
-    action: str = typer.Argument(..., help="Action: install, list, validate, template, deps, lock, optimize"),
+    action: str = typer.Argument(..., help="Action: install, list, validate, template, deps, lock, optimize, setup-ssh, github, local, create-custom"),
     template: Optional[str] = typer.Option(None, "--template", "-t", help="AI template: ml, deep_learning, generative_ai, computer_vision, nlp, full_ai"),
     library: Optional[str] = typer.Option(None, "--library", "-l", help="Library to install (name or URL)"),
-    source: Optional[str] = typer.Option(None, "--source", "-s", help="Library source (for custom installs)"),
-    upgrade: bool = typer.Option(False, "--upgrade", "-U", help="Upgrade existing libraries")
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="Library source (GitHub URL, local path, etc.)"),
+    upgrade: bool = typer.Option(False, "--upgrade", "-U", help="Upgrade existing libraries"),
+    branch: Optional[str] = typer.Option(None, "--branch", help="Git branch for repository installs"),
+    tag: Optional[str] = typer.Option(None, "--tag", help="Git tag for repository installs"),
+    commit: Optional[str] = typer.Option(None, "--commit", help="Git commit for repository installs"),
+    editable: bool = typer.Option(True, "--editable/--no-editable", help="Install in editable mode"),
+    author: Optional[str] = typer.Option("Kepler User", "--author", help="Author name for custom libraries")
 ) -> None:
     """
     Manage unlimited Python libraries for AI and Data Science.
@@ -998,9 +1086,74 @@ def libs(
                 rprint("\n⚠️ Environment needs optimization for production")
                 rprint("💡 Run 'kepler libs optimize --create-prod' to generate optimized requirements")
         
+        elif action == "setup-ssh":
+            from kepler.libs import setup_ssh
+            rprint("🔑 Setting up SSH authentication for private repositories...")
+            
+            success = setup_ssh(test_connection=True)
+            if success:
+                rprint("✅ [green]SSH authentication configured successfully[/green]")
+            else:
+                rprint("❌ [red]SSH setup failed[/red]")
+                raise typer.Exit(1)
+                
+        elif action == "github":
+            if not source:
+                rprint("❌ GitHub URL required. Use --source 'user/repo' or full URL")
+                raise typer.Exit(1)
+                
+            from kepler.libs import install_github
+            rprint(f"📦 Installing from GitHub: [blue]{source}[/blue]")
+            
+            if branch:
+                rprint(f"   🌿 Branch: {branch}")
+            if tag:
+                rprint(f"   🏷️ Tag: {tag}")
+            if commit:
+                rprint(f"   📝 Commit: {commit}")
+            
+            success = install_github(source, branch=branch, tag=tag, commit=commit)
+            if success:
+                rprint("✅ [green]GitHub library installed successfully[/green]")
+            else:
+                rprint("❌ [red]GitHub installation failed[/red]")
+                raise typer.Exit(1)
+                
+        elif action == "local":
+            if not source:
+                rprint("❌ Local path required. Use --source './path/to/library'")
+                raise typer.Exit(1)
+                
+            from kepler.libs import install_local
+            rprint(f"📂 Installing local library: [blue]{source}[/blue]")
+            
+            success = install_local(source, editable=editable)
+            mode = "editable" if editable else "standard"
+            if success:
+                rprint(f"✅ [green]Local library installed successfully ({mode} mode)[/green]")
+            else:
+                rprint("❌ [red]Local installation failed[/red]")
+                raise typer.Exit(1)
+                
+        elif action == "create-custom":
+            if not library:
+                rprint("❌ Library name required. Use --library 'my-custom-lib'")
+                raise typer.Exit(1)
+                
+            from kepler.libs import create_custom_lib
+            rprint(f"🔧 Creating custom library template: [blue]{library}[/blue]")
+            
+            lib_path = create_custom_lib(library, author)
+            rprint(f"✅ [green]Custom library template created: {lib_path}[/green]")
+            rprint(f"👤 [blue]Author: {author}[/blue]")
+            rprint("\n📋 [yellow]Next steps:[/yellow]")
+            rprint(f"   1. Edit your library: [blue]{lib_path}[/blue]")
+            rprint(f"   2. Install: [blue]kepler libs local --source {lib_path}[/blue]")
+            rprint(f"   3. Import: [blue]import {library.replace('-', '_')}[/blue]")
+        
         else:
             rprint(f"❌ Unknown action: {action}")
-            rprint("Available actions: template, install, list, validate, deps, lock, optimize")
+            rprint("Available actions: template, install, list, validate, deps, lock, optimize, setup-ssh, github, local, create-custom")
             raise typer.Exit(1)
             
     except LibraryManagementError as e:

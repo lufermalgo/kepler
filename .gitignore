@@ -134,7 +134,7 @@ models/
 data/
 logs/
 .kepler/
-.dev-docs/
+# .dev-docs/  # Removed - obsolete
 
 # GCP credentials
 service-account-key.json
