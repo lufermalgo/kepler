@@ -805,7 +805,7 @@ def predict(
 # Library Management Commands - Unlimited Python Library Support
 @app.command()
 def libs(
-    action: str = typer.Argument(..., help="Action: install, list, validate, template"),
+    action: str = typer.Argument(..., help="Action: install, list, validate, template, deps, lock, optimize"),
     template: Optional[str] = typer.Option(None, "--template", "-t", help="AI template: ml, deep_learning, generative_ai, computer_vision, nlp, full_ai"),
     library: Optional[str] = typer.Option(None, "--library", "-l", help="Library to install (name or URL)"),
     source: Optional[str] = typer.Option(None, "--source", "-s", help="Library source (for custom installs)"),
@@ -936,9 +936,71 @@ def libs(
                 rprint(f"\n⚠️ {missing}/{total} libraries missing or failed to import")
                 rprint(f"Missing: {', '.join(report['missing_libraries'])}")
                 
+        elif action == "deps":
+            rprint("🔍 Analyzing dependency graph...")
+            report = lib_manager.resolve_dependencies()
+            
+            from rich.table import Table
+            table = Table(title="Dependency Analysis")
+            table.add_column("Library", style="cyan")
+            table.add_column("Requested", style="yellow")
+            table.add_column("Installed", style="green")
+            table.add_column("Status", style="magenta")
+            
+            for lib_name, version_info in report['resolved_versions'].items():
+                status = "✅ OK"
+                table.add_row(
+                    lib_name,
+                    version_info['requested'],
+                    version_info['installed'],
+                    status
+                )
+            
+            console.print(table)
+            
+            if report['conflicts']:
+                rprint(f"\n⚠️ {len(report['conflicts'])} conflicts detected:")
+                for conflict in report['conflicts']:
+                    rprint(f"  - {conflict['library']}: wants {conflict['requested']}, has {conflict['installed']}")
+            else:
+                rprint(f"\n✅ No conflicts detected in {report['total_libraries']} libraries")
+            
+            if report['recommendations']:
+                rprint("\n💡 Recommendations:")
+                for rec in report['recommendations']:
+                    rprint(f"  - {rec}")
+                    
+        elif action == "lock":
+            rprint("🔒 Creating dependency lock file...")
+            lib_manager.create_dependency_lock()
+            rprint("✅ Created kepler-lock.txt with exact versions")
+            
+        elif action == "optimize":
+            rprint("🚀 Analyzing production optimization opportunities...")
+            report = lib_manager.optimize_for_production()
+            
+            rprint(f"📊 Total libraries: {report['total_libraries']}")
+            
+            if report['development_only']:
+                rprint(f"\n🛠️ Development-only libraries detected ({len(report['development_only'])}):")
+                for item in report['development_only']:
+                    rprint(f"  - {item['name']}: {item['reason']}")
+            
+            if report['alternative_suggestions']:
+                rprint(f"\n💡 Size optimization suggestions ({len(report['alternative_suggestions'])}):")
+                for suggestion in report['alternative_suggestions']:
+                    rprint(f"  - {suggestion['current']} → {suggestion['alternative']}")
+                    rprint(f"    Reason: {suggestion['reason']}")
+            
+            if report['production_ready']:
+                rprint("\n✅ Environment is production-ready!")
+            else:
+                rprint("\n⚠️ Environment needs optimization for production")
+                rprint("💡 Run 'kepler libs optimize --create-prod' to generate optimized requirements")
+        
         else:
             rprint(f"❌ Unknown action: {action}")
-            rprint("Available actions: template, install, list, validate")
+            rprint("Available actions: template, install, list, validate, deps, lock, optimize")
             raise typer.Exit(1)
             
     except LibraryManagementError as e:

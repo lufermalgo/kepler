@@ -520,6 +520,164 @@ class TestLibraryValidation:
         assert 'python_executable' in report
 
 
+class TestDynamicLoadingAndDependencyManagement:
+    """Test advanced dynamic loading and dependency management features"""
+    
+    def setup_method(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.manager = LibraryManager(self.temp_dir)
+        
+    def teardown_method(self):
+        import shutil
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    @patch('importlib.import_module')
+    def test_dynamic_import_success(self, mock_import):
+        """Test successful dynamic import with caching"""
+        mock_module = MagicMock()
+        mock_module.__name__ = "numpy"
+        mock_import.return_value = mock_module
+        
+        # First import
+        result1 = self.manager.dynamic_import("numpy")
+        assert result1 == mock_module
+        
+        # Second import should use cache
+        result2 = self.manager.dynamic_import("numpy")
+        assert result2 == mock_module
+        
+        # Should only call import_module once (cached)
+        mock_import.assert_called_once_with("numpy")
+    
+    @patch('importlib.import_module')
+    def test_dynamic_import_with_reload(self, mock_import):
+        """Test dynamic import with force reload"""
+        mock_module = MagicMock()
+        mock_import.return_value = mock_module
+        
+        # Import once
+        self.manager.dynamic_import("numpy")
+        
+        # Import with reload should call import_module again
+        self.manager.dynamic_import("numpy", force_reload=True)
+        
+        assert mock_import.call_count == 2
+    
+    def test_resolve_dependencies_no_conflicts(self):
+        """Test dependency resolution with no conflicts"""
+        # Create simple requirements.txt
+        requirements_content = "numpy>=1.20.0\npandas>=1.5.0"
+        requirements_file = Path(self.temp_dir) / "requirements.txt"
+        requirements_file.write_text(requirements_content)
+        
+        report = self.manager.resolve_dependencies()
+        
+        assert report['total_libraries'] == 2
+        assert len(report['conflicts']) == 0
+        assert isinstance(report['recommendations'], list)
+    
+    def test_setup_development_environment_pytorch(self):
+        """Test development environment setup for PyTorch"""
+        success = self.manager.setup_development_environment(['pytorch', 'transformers'])
+        assert success
+        
+        # Check that development tools were added
+        requirements_file = Path(self.temp_dir) / "requirements.txt"
+        content = requirements_file.read_text()
+        
+        assert 'jupyter' in content
+        assert 'tensorboard' in content  # PyTorch-specific
+        assert 'datasets' in content     # Transformers-specific
+    
+    def test_optimize_for_production(self):
+        """Test production optimization analysis"""
+        # Create requirements with dev dependencies
+        requirements_content = """
+numpy>=1.20.0
+pandas>=1.5.0
+jupyter>=1.0.0
+pytest>=7.0.0
+tensorboard>=2.13.0
+"""
+        requirements_file = Path(self.temp_dir) / "requirements.txt"
+        requirements_file.write_text(requirements_content)
+        
+        # Mock installed libraries
+        with patch.object(self.manager, 'get_installed_libraries') as mock_installed:
+            mock_installed.return_value = [
+                {'name': 'numpy', 'version': '1.24.0', 'source': 'PyPI'},
+                {'name': 'pandas', 'version': '2.0.0', 'source': 'PyPI'},
+                {'name': 'jupyter', 'version': '1.0.0', 'source': 'PyPI'},
+                {'name': 'pytest', 'version': '7.2.0', 'source': 'PyPI'},
+                {'name': 'tensorboard', 'version': '2.13.0', 'source': 'PyPI'},
+            ]
+            
+            report = self.manager.optimize_for_production()
+            
+            assert report['total_libraries'] == 5
+            assert len(report['development_only']) > 0  # Should detect jupyter, pytest, tensorboard
+            assert not report['production_ready']  # Should be False due to dev dependencies
+    
+    def test_create_production_requirements(self):
+        """Test creating optimized production requirements"""
+        # Setup requirements with dev dependencies
+        requirements_content = """
+numpy>=1.20.0
+pandas>=1.5.0
+jupyter>=1.0.0
+pytest>=7.0.0
+"""
+        requirements_file = Path(self.temp_dir) / "requirements.txt"
+        requirements_file.write_text(requirements_content)
+        
+        with patch.object(self.manager, 'get_installed_libraries') as mock_installed:
+            mock_installed.return_value = [
+                {'name': 'numpy', 'version': '1.24.0', 'source': 'PyPI'},
+                {'name': 'pandas', 'version': '2.0.0', 'source': 'PyPI'},
+                {'name': 'jupyter', 'version': '1.0.0', 'source': 'PyPI'},
+                {'name': 'pytest', 'version': '7.2.0', 'source': 'PyPI'},
+            ]
+            
+            prod_file = self.manager.create_production_requirements()
+            
+            # Check production file was created
+            assert Path(prod_file).exists()
+            
+            # Check content excludes dev dependencies
+            content = Path(prod_file).read_text()
+            assert 'numpy' in content
+            assert 'pandas' in content
+            assert 'jupyter' not in content  # Should be excluded
+            assert 'pytest' not in content   # Should be excluded
+    
+    def test_create_dependency_lock(self):
+        """Test comprehensive dependency lock file creation"""
+        with patch.object(self.manager, 'get_installed_libraries') as mock_installed:
+            mock_installed.return_value = [
+                {'name': 'numpy', 'version': '1.24.0', 'source': 'PyPI'},
+                {'name': 'transformers', 'version': '4.30.0', 'source': 'Git Repository'},
+            ]
+            
+            with patch.object(self.manager, 'resolve_dependencies') as mock_resolve:
+                mock_resolve.return_value = {
+                    'total_libraries': 2,
+                    'conflicts': [],
+                    'resolved_versions': {}
+                }
+                
+                self.manager.create_dependency_lock()
+                
+                # Check lock file was created
+                lock_file = Path(self.temp_dir) / "kepler-lock.txt"
+                assert lock_file.exists()
+                
+                content = lock_file.read_text()
+                assert 'numpy==1.24.0' in content
+                assert 'transformers==4.30.0' in content
+                assert 'Python:' in content
+                assert 'Generated:' in content
+
+
 # Integration test scenarios
 class TestUnlimitedLibrarySupportIntegration:
     """Integration tests for unlimited library support system"""
