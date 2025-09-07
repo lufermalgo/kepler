@@ -17,8 +17,9 @@ from kepler.core.config import (
     print_gcp_detection_report
 )
 from kepler.core.global_config import get_global_config_manager, get_global_config
+from kepler.core.library_manager import LibraryManager, create_ai_template, install_unlimited_libraries
 from kepler.utils.logging import get_logger, set_verbose
-from kepler.utils.exceptions import setup_exception_handler, handle_exception
+from kepler.utils.exceptions import setup_exception_handler, handle_exception, LibraryManagementError
 from kepler.utils.synthetic_data import IndustrialDataGenerator, create_lab_dataset
 
 # Initialize Typer app
@@ -801,12 +802,162 @@ def predict(
     rprint(f"[dim]With data: {data}[/dim]")
 
 
+# Library Management Commands - Unlimited Python Library Support
+@app.command()
+def libs(
+    action: str = typer.Argument(..., help="Action: install, list, validate, template"),
+    template: Optional[str] = typer.Option(None, "--template", "-t", help="AI template: ml, deep_learning, generative_ai, computer_vision, nlp, full_ai"),
+    library: Optional[str] = typer.Option(None, "--library", "-l", help="Library to install (name or URL)"),
+    source: Optional[str] = typer.Option(None, "--source", "-s", help="Library source (for custom installs)"),
+    upgrade: bool = typer.Option(False, "--upgrade", "-U", help="Upgrade existing libraries")
+) -> None:
+    """
+    Manage unlimited Python libraries for AI and Data Science.
+    
+    Supports ANY Python library from:
+    - PyPI official (sklearn, transformers, pytorch)  
+    - GitHub repositories (git+https://github.com/user/repo.git)
+    - Private repositories (git+ssh://git@company.com/repo.git)
+    - Local custom libraries (-e ./my-lib)
+    - Wheel files (./dist/package.whl)
+    
+    Examples:
+      kepler libs template --template generative_ai
+      kepler libs install --library transformers
+      kepler libs install --library git+https://github.com/research/experimental-ai.git
+      kepler libs list
+      kepler libs validate
+    """
+    logger = get_logger()
+    
+    try:
+        lib_manager = LibraryManager(".")
+        
+        if action == "template":
+            if not template:
+                rprint("❌ Template required. Available: ml, deep_learning, generative_ai, computer_vision, nlp, full_ai")
+                raise typer.Exit(1)
+                
+            rprint(f"🚀 Creating {template} template...")
+            success = lib_manager.create_environment_from_template(template)
+            
+            if success:
+                rprint(f"✅ Created requirements.txt with {template} template")
+                rprint("📦 Run 'kepler libs install' to install all libraries")
+            else:
+                rprint("❌ Failed to create template")
+                raise typer.Exit(1)
+                
+        elif action == "install":
+            if library:
+                # Install specific library
+                from kepler.core.library_manager import LibrarySpec, LibrarySource
+                
+                if library.startswith('git+'):
+                    spec = lib_manager._parse_git_requirement(library)
+                elif source:
+                    spec = LibrarySpec(name=library, source=LibrarySource.PYPI, version=source)
+                else:
+                    spec = LibrarySpec(name=library, source=LibrarySource.PYPI)
+                
+                rprint(f"🚀 Installing {library}...")
+                success = lib_manager.install_library(spec, upgrade=upgrade)
+                
+                if success:
+                    rprint(f"✅ Successfully installed {library}")
+                else:
+                    rprint(f"❌ Failed to install {library}")
+                    raise typer.Exit(1)
+            else:
+                # Install from requirements.txt
+                rprint("🚀 Installing all libraries from requirements.txt...")
+                results = lib_manager.install_from_requirements()
+                
+                successful = sum(1 for success in results.values() if success)
+                total = len(results)
+                
+                if successful == total:
+                    rprint(f"✅ Successfully installed all {total} libraries")
+                else:
+                    rprint(f"⚠️ Installed {successful}/{total} libraries")
+                    failed = [name for name, success in results.items() if not success]
+                    rprint(f"❌ Failed: {', '.join(failed)}")
+                    
+        elif action == "list":
+            rprint("📦 Installed Python Libraries:")
+            installed = lib_manager.get_installed_libraries()
+            
+            if not installed:
+                rprint("No libraries found in current environment")
+                return
+                
+            from rich.table import Table
+            table = Table(title="Installed Libraries")
+            table.add_column("Name", style="cyan")
+            table.add_column("Version", style="green") 
+            table.add_column("Source", style="yellow")
+            table.add_column("Location", style="dim")
+            
+            for lib in sorted(installed, key=lambda x: x['name']):
+                table.add_row(
+                    lib['name'],
+                    lib['version'],
+                    lib['source'],
+                    str(lib['location'])[:50] + "..." if len(str(lib['location'])) > 50 else str(lib['location'])
+                )
+                
+            console.print(table)
+            rprint(f"\n📊 Total: {len(installed)} libraries installed")
+            
+        elif action == "validate":
+            rprint("🔍 Validating Python library environment...")
+            report = lib_manager.validate_environment()
+            
+            from rich.table import Table
+            table = Table(title="Library Environment Validation")
+            table.add_column("Library", style="cyan")
+            table.add_column("Status", style="green")
+            table.add_column("Source", style="yellow")
+            
+            for lib_name, lib_info in report['libraries'].items():
+                status = "✅ OK" if lib_info['installed'] else "❌ MISSING"
+                table.add_row(lib_name, status, lib_info['source'])
+                
+            console.print(table)
+            
+            # Summary
+            total = report['total_libraries']
+            successful = report['successful_imports']
+            
+            if successful == total:
+                rprint(f"\n✅ All {total} libraries validated successfully")
+            else:
+                missing = total - successful
+                rprint(f"\n⚠️ {missing}/{total} libraries missing or failed to import")
+                rprint(f"Missing: {', '.join(report['missing_libraries'])}")
+                
+        else:
+            rprint(f"❌ Unknown action: {action}")
+            rprint("Available actions: template, install, list, validate")
+            raise typer.Exit(1)
+            
+    except LibraryManagementError as e:
+        rprint(f"❌ Library management error: {e.message}")
+        if e.suggestion:
+            rprint(f"💡 {e.suggestion}")
+        raise typer.Exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error in libs command: {e}")
+        rprint(f"❌ Unexpected error: {e}")
+        raise typer.Exit(1)
+
+
 @app.command("version")
 def show_version() -> None:
     """Show Kepler version information."""
     from kepler import __version__
     rprint(f"[bold green]Kepler Framework v{__version__}[/bold green]")
-    rprint("[dim]Simple ML for Industrial Data[/dim]")
+    rprint("[dim]AI & Data Science Ecosystem Framework[/dim]")
 
 
 @app.callback()

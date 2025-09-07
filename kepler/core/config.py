@@ -192,14 +192,32 @@ def validate_prerequisites() -> Dict[str, bool]:
     import sys
     results['python_version'] = sys.version_info >= (3, 8)
     
-    # Check required packages
-    required_packages = ['pandas', 'numpy', 'sklearn', 'xgboost', 'splunklib', 'google.cloud']
-    for package in required_packages:
-        try:
-            __import__(package)
-            results[f'package_{package}'] = True
-        except ImportError:
-            results[f'package_{package}'] = False
+    # Check libraries from requirements.txt (unlimited support)
+    from kepler.core.library_manager import LibraryManager
+    
+    try:
+        lib_manager = LibraryManager(".")
+        env_report = lib_manager.validate_environment()
+        
+        results['total_libraries'] = env_report['total_libraries']
+        results['successful_imports'] = env_report['successful_imports']
+        results['missing_libraries'] = len(env_report['missing_libraries'])
+        
+        # Add individual library status
+        for lib_name, lib_info in env_report['libraries'].items():
+            results[f'library_{lib_name}'] = lib_info['installed']
+            
+        # Overall library environment health
+        if env_report['total_libraries'] > 0:
+            results['library_environment_health'] = (
+                env_report['successful_imports'] / env_report['total_libraries']
+            ) >= 0.8  # 80% threshold
+        else:
+            results['library_environment_health'] = True  # No requirements = OK
+            
+    except Exception as e:
+        results['library_validation_error'] = str(e)
+        results['library_environment_health'] = False
     
     # Check environment variables (if config exists)
     if Path("kepler.yml").exists():

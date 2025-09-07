@@ -87,6 +87,15 @@ class ValidationError(KeplerError):
         super().__init__(message, details, suggestion or default_suggestion)
 
 
+class LibraryManagementError(KeplerError):
+    """Raised when library installation or management fails"""
+    
+    def __init__(self, message: str, library_name: Optional[str] = None, suggestion: Optional[str] = None):
+        details = f"Library: {library_name}" if library_name else None
+        default_suggestion = "Check library name, version, and source URL"
+        super().__init__(message, details, suggestion or default_suggestion)
+
+
 def handle_exception(exc: Exception, verbose: bool = False) -> int:
     """
     Handle exceptions in a user-friendly way
