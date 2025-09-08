@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kepler-framework"
-version = "0.2.1"
+version = "0.2.2"
 description = "A pragmatic framework for industrial data science with Splunk and ML"
 readme = "README.md"
 license = {text = "MIT"}

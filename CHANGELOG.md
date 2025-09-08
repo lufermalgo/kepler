@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-09-08
+
+### 🚨 CRITICAL FIXES
+- **Metrics indexing and extraction fully functional** - mstats queries now work correctly
+- **Timezone handling corrected** to America/Bogota (UTC-5) - resolves 5-hour offset issue
+- **HEC metrics format aligned** with Splunk specifications using validated Postman format
+- **Removed temporary fallbacks** per GOLD DIRECTIVE - 100% compliance with official specs
+
+### 🔧 Technical Changes
+- **Metrics format**: `{"event": "metric", "fields": {metric_name: value, dimensions...}}`
+- **Timestamp generation**: pytz-based timezone handling for America/Bogota
+- **Error handling**: Standardized across all HEC operations
+- **Format validation**: Based on user's working Postman example
+
+### ✅ Validation Results
+- Events: Successfully indexed and extracted from kepler_lab
+- Metrics: Successfully indexed and extracted from kepler_metrics with mstats
+- Timestamps: Corrected to local timezone, queries work with -10m timeframe
+- Format: 100% aligned with official Splunk HEC documentation
+
 ## [0.2.1] - 2025-09-07
 
 ### 🎉 Achievement
