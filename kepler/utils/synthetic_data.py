@@ -45,8 +45,10 @@ class IndustrialDataGenerator:
         Returns:
             DataFrame con métricas de sensores
         """
-        # Generar timestamps
-        end_time = datetime.now()
+        # Generar timestamps en zona horaria local (America/Bogotá)
+        import pytz
+        local_tz = pytz.timezone('America/Bogota')
+        end_time = datetime.now(local_tz)
         start_time = end_time - timedelta(hours=duration_hours)
         
         timestamps = pd.date_range(
@@ -124,7 +126,10 @@ class IndustrialDataGenerator:
         Returns:
             DataFrame con métricas de producción
         """
-        end_time = datetime.now()
+        # Usar zona horaria local (America/Bogotá)
+        import pytz
+        local_tz = pytz.timezone('America/Bogota')
+        end_time = datetime.now(local_tz)
         start_time = end_time - timedelta(hours=duration_hours)
         
         timestamps = pd.date_range(
@@ -196,7 +201,10 @@ class IndustrialDataGenerator:
         Returns:
             DataFrame con métricas de calidad
         """
-        end_time = datetime.now()
+        # Usar zona horaria local (America/Bogotá)
+        import pytz
+        local_tz = pytz.timezone('America/Bogota')
+        end_time = datetime.now(local_tz)
         start_time = end_time - timedelta(hours=duration_hours)
         
         timestamps = pd.date_range(

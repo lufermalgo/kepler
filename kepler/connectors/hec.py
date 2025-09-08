@@ -132,7 +132,7 @@ class HecWriter:
             raise SplunkConnectionError(
                 f"HEC connection validation failed: {error_msg}",
                 splunk_host=self.hec_url,
-                suggestion="Verify HEC is enabled and token is valid"
+                hint="Verify HEC is enabled and token is valid"
             )
         
         self.logger.info("HEC connection validated successfully")
@@ -207,7 +207,7 @@ class HecWriter:
         except Exception as e:
             raise DataExtractionError(
                 f"Failed to write events to HEC: {e}",
-                suggestion="Check HEC token and endpoint configuration"
+                hint="Check HEC token and endpoint configuration"
             )
     
     def write_metric(self,
@@ -233,20 +233,35 @@ class HecWriter:
         Returns:
             True if successful
         """
-        metrics = [{
-            'metric': metric_name,
-            'value': metric_value,
-            'dimensions': dimensions or {},
-            'source': source,
-            'host': host,
-            'index': index,
-            'time': self._format_timestamp(timestamp) if timestamp else None
-        }]
+        # Create proper metric structure based on working Postman example
+        # Format: {"event": "metric", "fields": {metric_name: value, dimensions...}}
+        # This format is confirmed to work with the user's Splunk instance
+        
+        # Create fields object with metric and dimensions
+        fields = {metric_name: metric_value}
+        if dimensions:
+            fields.update(dimensions)
+        
+        # Create metric data structure matching working Postman format
+        metric_data = {
+            'event': 'metric',
+            'fields': fields
+        }
+        
+        # Add metadata fields
+        if timestamp:
+            metric_data['time'] = self._format_timestamp(timestamp)
+        if source:
+            metric_data['source'] = source
+        if host:
+            metric_data['host'] = host
+        if index:
+            metric_data['index'] = index
         
         # Remove None values
-        metrics[0] = {k: v for k, v in metrics[0].items() if v is not None}
+        metric_data = {k: v for k, v in metric_data.items() if v is not None}
         
-        return self.write_metrics(metrics)
+        return self.write_metrics([metric_data])
     
     def write_metrics(self, metrics: List[Dict[str, Any]]) -> bool:
         """
@@ -276,7 +291,7 @@ class HecWriter:
         except Exception as e:
             raise DataExtractionError(
                 f"Failed to write metrics to HEC: {e}",
-                suggestion="Check HEC token and metrics endpoint configuration"
+                hint="Check HEC token and metrics endpoint configuration"
             )
     
     def write_dataframe_as_events(self,
@@ -398,16 +413,23 @@ class HecWriter:
             batch: Batch of events or metrics
             endpoint_type: 'event' or 'metric'
         """
-        # Both events and metrics use the same endpoint: /services/collector
-        # The difference is in the data format (event field)
-        # Según documentación oficial: docs.splunk.com
-        if self.hec_url.endswith('/metrics') or self.hec_url.endswith('/event'):
-            # Si la URL termina con un endpoint específico, usar base
-            base_url = self.hec_url.rstrip('/metrics').rstrip('/event')
-            url = base_url
+        # Use correct endpoints according to official Splunk documentation
+        # Events: /services/collector/event
+        # Metrics: /services/collector (base endpoint)
+        # Reference: https://docs.splunk.com/Documentation/Splunk/9.4.2/Data/TroubleshootHTTPEventCollector
+        
+        if endpoint_type == 'metric':
+            # Metrics use base collector endpoint
+            if self.hec_url.endswith('/event'):
+                url = self.hec_url.replace('/event', '')
+            else:
+                url = self.hec_url
         else:
-            # Si es la URL base, usar tal como está
-            url = self.hec_url
+            # Events use /event endpoint
+            if not self.hec_url.endswith('/event'):
+                url = f"{self.hec_url}/event"
+            else:
+                url = self.hec_url
         
         # Convert batch to newline-delimited JSON
         payload = '\n'.join(json.dumps(item) for item in batch)
@@ -423,7 +445,7 @@ class HecWriter:
         if response.status_code != 200:
             raise DataExtractionError(
                 f"HEC {endpoint_type} write failed: HTTP {response.status_code}",
-                suggestion=f"Response: {response.text}"
+                hint=f"Response: {response.text}"
             )
         
         # Check for HEC-specific errors in response
@@ -432,7 +454,7 @@ class HecWriter:
             if response_data.get('code') != 0:
                 raise DataExtractionError(
                     f"HEC returned error: {response_data.get('text', 'Unknown error')}",
-                    suggestion="Check HEC configuration and token permissions"
+                    hint="Check HEC configuration and token permissions"
                 )
         except (json.JSONDecodeError, AttributeError):
             # Response might not be JSON, which is OK for successful writes

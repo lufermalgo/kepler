@@ -88,7 +88,7 @@ class SplunkConnector(DataConnector):
                 raise SplunkConnectionError(
                     f"Failed to connect to Splunk via SDK: {e}",
                     splunk_host=self.host,
-                    suggestion="Check your Splunk host URL and authentication token"
+                    hint="Check your Splunk host URL and authentication token"
                 )
         
         return self._client
@@ -262,7 +262,7 @@ class SplunkConnector(DataConnector):
             raise SplunkConnectionError(
                 f"All connection attempts failed: {error_summary}",
                 splunk_host=self.original_host,
-                suggestion=self._get_connection_suggestion()
+                hint=self._get_connection_hint()
             )
             
         except SplunkConnectionError:
@@ -271,7 +271,7 @@ class SplunkConnector(DataConnector):
             raise SplunkConnectionError(
                 f"Unexpected error during connection validation: {e}",
                 splunk_host=self.host,
-                suggestion="Check Splunk server status and network connectivity"
+                hint="Check Splunk server status and network connectivity"
             )
     
     def _attempt_health_check(self, attempt_name: str) -> Dict[str, Any]:
@@ -290,8 +290,8 @@ class SplunkConnector(DataConnector):
         ]
         return any(indicator in error_str for indicator in ssl_indicators)
     
-    def _get_connection_suggestion(self) -> str:
-        """Get contextual suggestion based on connection failures"""
+    def _get_connection_hint(self) -> str:
+        """Get contextual hint based on connection failures"""
         if self._ssl_failed:
             return ("SSL certificate issues detected. "
                    "For development: set verify_ssl=False in configuration. "
@@ -328,7 +328,7 @@ class SplunkConnector(DataConnector):
                 raise SplunkConnectionError(
                     "Authentication failed - invalid token",
                     splunk_host=self.host,
-                    suggestion="Check your authentication token in kepler.yml"
+                    hint="Check your authentication token in kepler.yml"
                 )
             else:
                 raise SplunkConnectionError(
@@ -340,7 +340,7 @@ class SplunkConnector(DataConnector):
             raise SplunkConnectionError(
                 f"Authentication test failed: {e}",
                 splunk_host=self.host,
-                suggestion="Check network connectivity to Splunk server"
+                hint="Check network connectivity to Splunk server"
             )
     
     def extract(self, query: str, **kwargs) -> pd.DataFrame:
@@ -426,7 +426,7 @@ class SplunkConnector(DataConnector):
                 raise DataExtractionError(
                     f"Search execution failed: HTTP {response.status_code}",
                     query=query,
-                    suggestion="Check your SPL query syntax and permissions"
+                    hint="Check your SPL query syntax and permissions"
                 )
             
             # Parse results
@@ -444,7 +444,7 @@ class SplunkConnector(DataConnector):
                     raise DataExtractionError(
                         f"Splunk query error: {error_text}",
                         query=query,
-                        suggestion="Check the SPL syntax according to Splunk documentation"
+                        hint="Check the SPL syntax according to Splunk documentation"
                     )
             
             results_list = result_data.get('results', [])
@@ -456,13 +456,13 @@ class SplunkConnector(DataConnector):
             raise DataExtractionError(
                 f"Search timed out after {timeout} seconds",
                 query=query,
-                suggestion="Try reducing the time range or adding more specific filters"
+                hint="Try reducing the time range or adding more specific filters"
             )
         except requests.exceptions.RequestException as e:
             raise DataExtractionError(
                 f"Search request failed: {e}",
                 query=query,
-                suggestion="Check network connectivity and query syntax"
+                hint="Check network connectivity and query syntax"
             )
         except Exception as e:
             raise DataExtractionError(

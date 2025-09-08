@@ -488,15 +488,13 @@ def extract(
     logger = get_logger()
     logger.info(f"Starting data extraction with query: {query[:100]}{'...' if len(query) > 100 else ''}")
     
-    # Validate that we're in a Kepler project
-    project = KeplerProject()
-    if not project.validate_project():
-        raise typer.Exit(1)
-    
-    # Get project configuration
-    config = project.get_config()
-    if not config:
-        rprint("❌ Could not load project configuration")
+    # Load only Splunk configuration for data extraction
+    from kepler.core.config import load_config
+    try:
+        config = load_config()
+    except Exception as e:
+        rprint(f"❌ Could not load Splunk configuration: {e}")
+        rprint("💡 Ensure kepler.yml and .env are properly configured")
         raise typer.Exit(1)
     
     try:
@@ -2426,9 +2424,9 @@ def _lab_load_data(events_index: str, metrics_index: str) -> None:
         raise typer.Exit(1)
     
     try:
-        # Cargar configuración del proyecto
-        project = KeplerProject()
-        config = project.get_config()
+        # Cargar solo configuración de Splunk para HEC
+        from kepler.core.config import load_config
+        config = load_config()
         
         # Verificar configuración HEC
         if not config.splunk.hec_token:
@@ -2439,7 +2437,8 @@ def _lab_load_data(events_index: str, metrics_index: str) -> None:
         # Inicializar HEC Writer
         hec_writer = HecWriter(
             hec_url=config.splunk.hec_url or f"{config.splunk.host}:8088/services/collector",
-            token=config.splunk.hec_token
+            hec_token=config.splunk.hec_token,
+            verify_ssl=config.splunk.verify_ssl
         )
         
         # Verificar conectividad
@@ -2463,20 +2462,16 @@ def _lab_load_data(events_index: str, metrics_index: str) -> None:
             with open(events_file, 'r') as f:
                 events = [json.loads(line) for line in f]
             
-            # Enviar eventos en lotes
-            batch_size = 100
-            for i in range(0, len(events), batch_size):
-                batch = events[i:i + batch_size]
-                batch_events = [event['event'] for event in batch]
-                
-                hec_writer.write_events_batch(
-                    events=batch_events,
+            # Enviar eventos individuales (write_event acepta index)
+            for event in events:
+                hec_writer.write_event(
+                    event_data=event['event'],
                     index=events_index,
                     source="kepler_lab",
-                    sourcetype="industrial_metrics"
+                    sourcetype="industrial_sensors"
                 )
                 
-                progress.update(task1, advance=len(batch))
+                progress.update(task1, advance=1)
             
             progress.remove_task(task1)
             
@@ -2486,20 +2481,17 @@ def _lab_load_data(events_index: str, metrics_index: str) -> None:
             with open(metrics_file, 'r') as f:
                 metrics = [json.loads(line) for line in f]
             
-            # Enviar métricas en lotes
-            for i in range(0, len(metrics), batch_size):
-                batch = metrics[i:i + batch_size]
+            # Enviar métricas individuales
+            for metric in metrics:
+                hec_writer.write_metric(
+                    metric_name="industrial_metrics",
+                    metric_value=1,  # Dummy value, real data in dimensions
+                    timestamp=metric['time'],
+                    dimensions=metric.get('fields', {}),
+                    index=metrics_index
+                )
                 
-                for metric in batch:
-                    hec_writer.write_metric(
-                        metric_name="industrial_metrics",
-                        value=1,  # Dummy value, real data in fields
-                        timestamp=metric['time'],
-                        fields=metric['fields'],
-                        index=metrics_index
-                    )
-                
-                progress.update(task2, advance=len(batch))
+                progress.update(task2, advance=1)
             
             progress.remove_task(task2)
         
