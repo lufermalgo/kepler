@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-09-07
+
+### 🎉 Achievement
+- **100% ecosystem validation** achieved with real Splunk + GCP credentials
+- **Complete validation coverage** for all platform integrations
+- **Production-ready validation** with actionable troubleshooting
+
+### 🐛 Fixed
+- **Splunk configuration templates** now include all required URLs (API, HEC)
+- **Environment variable loading** unified to use proper substitution
+- **Token authentication** validated with real credentials and renewed tokens
+- **SSL/HTTP protocol handling** correctly configured per platform
+
+### 🔧 Improved
+- **Configuration templates** include explicit HEC URL configuration
+- **Error diagnostics** provide clear troubleshooting steps
+- **Real-world validation** tested with live Splunk instance
+- **Engineer workflow** validated end-to-end
+
+### 📚 Documentation
+- **Engineer setup process** validated and ready for manual
+- **Troubleshooting process** documented with real scenarios
+- **Configuration examples** updated with correct URL patterns
+
 ## [0.2.0] - 2025-09-07
 
 ### 🎉 Added

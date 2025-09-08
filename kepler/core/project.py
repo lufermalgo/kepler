@@ -187,7 +187,13 @@ GCP_PROJECT_ID=your_gcp_project_id_here
 
 # Optional: Override default settings
 # SPLUNK_HOST=https://your-splunk-server:8089
+# SPLUNK_HEC_URL=https://your-splunk-server:8088/services/collector
 # GCP_REGION=us-central1
+
+# Advanced Splunk Configuration
+# SPLUNK_VERIFY_SSL=true
+# SPLUNK_TIMEOUT=30
+# SPLUNK_METRICS_INDEX=kepler_metrics
 """
         
         with open(env_path, 'w') as f:

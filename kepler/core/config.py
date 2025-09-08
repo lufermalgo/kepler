@@ -160,7 +160,10 @@ class KeplerConfig(BaseModel):
                 "host": "https://localhost:8089",
                 "token": "${SPLUNK_TOKEN}",
                 "hec_token": "${SPLUNK_HEC_TOKEN}",
-                "metrics_index": "kepler_metrics"
+                "hec_url": "${SPLUNK_HEC_URL}",
+                "metrics_index": "kepler_metrics",
+                "verify_ssl": False,
+                "timeout": 30
             },
             "gcp": {
                 "project_id": "${GCP_PROJECT_ID}",
@@ -499,27 +502,8 @@ def load_config(config_file: str = "kepler.yml") -> KeplerConfig:
     if not config_path:
         raise ValueError(f"❌ Configuration file '{config_file}' not found in expected locations")
     
-    # Load YAML configuration
+    # Use KeplerConfig.from_file() which has proper environment variable substitution
     try:
-        with open(config_path, 'r') as f:
-            config_data = yaml.safe_load(f)
-    except Exception as e:
-        raise ValueError(f"❌ Error reading configuration file: {e}")
-    
-    # Merge with environment variables
-    if 'splunk' in config_data:
-        # Override with environment variables if present
-        if os.getenv('SPLUNK_TOKEN'):
-            config_data['splunk']['token'] = os.getenv('SPLUNK_TOKEN')
-        if os.getenv('SPLUNK_HEC_TOKEN'):
-            config_data['splunk']['hec_token'] = os.getenv('SPLUNK_HEC_TOKEN')
-    
-    if 'gcp' in config_data:
-        if os.getenv('GCP_PROJECT_ID'):
-            config_data['gcp']['project_id'] = os.getenv('GCP_PROJECT_ID')
-    
-    # Create configuration object
-    try:
-        return KeplerConfig(**config_data)
+        return KeplerConfig.from_file(config_path)
     except Exception as e:
         raise ValueError(f"❌ Invalid configuration: {e}")
