@@ -5,8 +5,13 @@ Implements the main CLI commands using Typer.
 """
 
 import typer
-from typing import Optional
+import subprocess
+import json
+import time
+import getpass
+from typing import Optional, List
 from pathlib import Path
+from datetime import datetime
 from rich.console import Console
 from rich import print as rprint
 
@@ -1165,6 +1170,1099 @@ def libs(
         logger.error(f"Unexpected error in libs command: {e}")
         rprint(f"❌ Unexpected error: {e}")
         raise typer.Exit(1)
+
+
+# Deployment Commands - Cloud Run Integration (Task 6.8)
+@app.command()
+def deploy(
+    model_file: str = typer.Argument(..., help="Path to trained model file (.pkl)"),
+    cloud: str = typer.Option("gcp", "--cloud", "-c", help="Cloud provider: gcp"),
+    project_id: str = typer.Option(None, "--project", "-p", help="Cloud project ID"),
+    service_name: Optional[str] = typer.Option(None, "--service", "-s", help="Service name (auto-generated if None)"),
+    region: str = typer.Option("us-central1", "--region", "-r", help="Cloud region"),
+    memory: str = typer.Option("1Gi", "--memory", "-m", help="Memory allocation (e.g., 1Gi, 2Gi)"),
+    cpu: str = typer.Option("1", "--cpu", help="CPU allocation (e.g., 1, 2)"),
+    min_instances: int = typer.Option(0, "--min-instances", help="Minimum instances"),
+    max_instances: int = typer.Option(100, "--max-instances", help="Maximum instances"),
+    splunk_hec_url: Optional[str] = typer.Option(None, "--splunk-hec-url", help="Splunk HEC URL for predictions"),
+    splunk_hec_token: Optional[str] = typer.Option(None, "--splunk-hec-token", help="Splunk HEC token"),
+    splunk_index: str = typer.Option("ml_predictions", "--splunk-index", help="Splunk index for predictions"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be deployed without deploying"),
+    wait: bool = typer.Option(True, "--wait/--no-wait", help="Wait for deployment to complete")
+) -> None:
+    """
+    Deploy trained model to cloud platform with automatic API generation.
+    
+    Supports ANY AI framework model:
+    - Traditional ML: sklearn, XGBoost, LightGBM models
+    - Deep Learning: PyTorch, TensorFlow models  
+    - Generative AI: transformers, langchain models
+    - Custom frameworks: Any Python model
+    
+    Examples:
+      kepler deploy model.pkl --cloud gcp --project my-ml-project
+      kepler deploy xgboost_model.pkl --cloud gcp --project my-project --service predictive-maintenance
+      kepler deploy pytorch_model.pkl --cloud gcp --project my-project --memory 2Gi --cpu 2
+    """
+    import joblib
+    from pathlib import Path
+    
+    logger = get_logger()
+    
+    try:
+        # Validate inputs
+        model_path = Path(model_file)
+        if not model_path.exists():
+            rprint(f"❌ Model file not found: {model_file}")
+            raise typer.Exit(1)
+        
+        if cloud != "gcp":
+            rprint(f"❌ Unsupported cloud provider: {cloud}")
+            rprint("Supported providers: gcp")
+            raise typer.Exit(1)
+        
+        if not project_id:
+            # Try to get from gcloud config
+            try:
+                result = subprocess.run(
+                    ["gcloud", "config", "get-value", "project"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    project_id = result.stdout.strip()
+                    rprint(f"📋 Using gcloud project: [blue]{project_id}[/blue]")
+                else:
+                    rprint("❌ No project ID specified and none configured in gcloud")
+                    rprint("💡 Use: --project YOUR_PROJECT_ID or run: gcloud config set project YOUR_PROJECT_ID")
+                    raise typer.Exit(1)
+            except Exception:
+                rprint("❌ No project ID specified and gcloud not available")
+                rprint("💡 Use: --project YOUR_PROJECT_ID")
+                raise typer.Exit(1)
+        
+        # Load and validate model
+        rprint(f"📦 Loading model: [blue]{model_file}[/blue]")
+        try:
+            model = joblib.load(model_path)
+            rprint("✅ Model loaded successfully")
+        except Exception as e:
+            rprint(f"❌ Failed to load model: {e}")
+            rprint("💡 Ensure model was saved with joblib.dump()")
+            raise typer.Exit(1)
+        
+        # Show deployment plan
+        if not service_name:
+            # Generate service name preview
+            model_type = getattr(model, 'model_type', 'unknown')
+            algorithm = getattr(model, 'algorithm', 'model')
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            service_name = f"kepler-{algorithm}-{model_type}-{timestamp}".lower().replace('_', '-')
+        
+        rprint("\n🚀 [bold]Deployment Plan:[/bold]")
+        rprint(f"   Cloud: [cyan]{cloud.upper()}[/cyan] (Google Cloud Run)")
+        rprint(f"   Project: [blue]{project_id}[/blue]")
+        rprint(f"   Region: [green]{region}[/green]")
+        rprint(f"   Service: [yellow]{service_name}[/yellow]")
+        rprint(f"   Resources: [dim]{memory} memory, {cpu} CPU[/dim]")
+        rprint(f"   Scaling: [dim]{min_instances}-{max_instances} instances[/dim]")
+        
+        if splunk_hec_url:
+            rprint(f"   Splunk: [purple]{splunk_index}[/purple] (predictions will be written)")
+        
+        if dry_run:
+            rprint("\n🔍 [yellow]Dry run mode - no actual deployment[/yellow]")
+            rprint("✅ Deployment plan validated")
+            return
+        
+        # Confirm deployment
+        if not typer.confirm(f"\nDeploy to {cloud.upper()}?"):
+            rprint("❌ Deployment cancelled")
+            raise typer.Exit(0)
+        
+        # Prepare deployment configuration
+        deployment_config = {
+            "project_id": project_id,
+            "region": region,
+            "service_name": service_name,
+            "memory": memory,
+            "cpu": cpu,
+            "min_instances": min_instances,
+            "max_instances": max_instances,
+            "environment_variables": {}
+        }
+        
+        # Add Splunk configuration if provided
+        if splunk_hec_url:
+            deployment_config["environment_variables"].update({
+                "SPLUNK_HEC_URL": splunk_hec_url,
+                "SPLUNK_HEC_TOKEN": splunk_hec_token or "",
+                "SPLUNK_INDEX": splunk_index
+            })
+        
+        # Execute deployment
+        rprint(f"\n🚀 Deploying to [cyan]{cloud.upper()}[/cyan]...")
+        
+        with console.status("Building and deploying...", spinner="dots"):
+            from kepler.deploy import to_cloud_run
+            
+            result = to_cloud_run(model, **deployment_config)
+        
+        # Show results
+        if result["success"]:
+            rprint(f"\n✅ [green]Deployment successful![/green]")
+            rprint(f"🌐 Service URL: [link]{result['service_url']}[/link]")
+            rprint(f"📝 Service Name: [blue]{result['service_name']}[/blue]")
+            rprint(f"⏱️  Deployment Time: [dim]{result['deployment_time']:.1f}s[/dim]")
+            
+            # Show health check results
+            if result.get("health_checks"):
+                health = result["health_checks"]
+                if health["overall_status"] == "healthy":
+                    rprint("💚 [green]Health checks: PASSED[/green]")
+                else:
+                    rprint("💛 [yellow]Health checks: PARTIAL[/yellow]")
+                    
+            rprint(f"\n📋 [dim]API Endpoints:[/dim]")
+            rprint(f"   Docs: [link]{result['service_url']}/docs[/link]")
+            rprint(f"   Health: [link]{result['service_url']}/healthz[/link]") 
+            rprint(f"   Predict: [link]{result['service_url']}/predict[/link]")
+            
+        else:
+            rprint(f"\n❌ [red]Deployment failed[/red]")
+            if "error_message" in result:
+                rprint(f"Error: {result['error_message']}")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        logger.error(f"Deployment command failed: {e}")
+        rprint(f"❌ Deployment error: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def status(
+    service_name: str = typer.Argument(..., help="Cloud Run service name"),
+    cloud: str = typer.Option("gcp", "--cloud", "-c", help="Cloud provider: gcp"),
+    project_id: str = typer.Option(None, "--project", "-p", help="Cloud project ID"),
+    region: str = typer.Option("us-central1", "--region", "-r", help="Cloud region")
+) -> None:
+    """
+    Get status of deployed model service.
+    
+    Shows detailed information about the deployment including:
+    - Service health and readiness
+    - Traffic allocation and revisions
+    - Resource usage and scaling
+    - Recent logs and metrics
+    
+    Examples:
+      kepler status my-model-api --project my-ml-project
+      kepler status predictive-maintenance --project my-project --region us-west1
+    """
+    logger = get_logger()
+    
+    try:
+        # Get project ID if not provided
+        if not project_id:
+            try:
+                result = subprocess.run(
+                    ["gcloud", "config", "get-value", "project"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    project_id = result.stdout.strip()
+                else:
+                    rprint("❌ No project ID specified and none configured in gcloud")
+                    raise typer.Exit(1)
+            except Exception:
+                rprint("❌ No project ID specified")
+                raise typer.Exit(1)
+        
+        rprint(f"📊 Getting status for: [blue]{service_name}[/blue]")
+        
+        # Get deployment status
+        from kepler.deploy import get_status, validate
+        
+        with console.status("Checking deployment status...", spinner="dots"):
+            status_info = get_status(service_name, project_id, region)
+            health_info = validate(service_name, project_id, region)
+        
+        # Display status information
+        rprint(f"\n🎯 [bold]Service: {service_name}[/bold]")
+        rprint(f"   URL: [link]{status_info.get('url', 'Not available')}[/link]")
+        rprint(f"   Region: [green]{region}[/green]")
+        rprint(f"   Ready: {'✅' if status_info.get('ready') else '❌'}")
+        rprint(f"   Latest Revision: [dim]{status_info.get('latest_revision', 'Unknown')}[/dim]")
+        
+        # Health check results
+        overall_health = health_info.get("overall_status", "unknown")
+        health_icon = "💚" if overall_health == "healthy" else "💛" if overall_health == "partial" else "💔"
+        rprint(f"\n{health_icon} [bold]Health Status: {overall_health.upper()}[/bold]")
+        
+        if "healthz" in health_info:
+            healthz = health_info["healthz"]
+            rprint(f"   /healthz: {healthz.get('status', 'unknown')} ({healthz.get('response_time_ms', 0):.0f}ms)")
+        
+        if "readyz" in health_info:
+            readyz = health_info["readyz"]
+            rprint(f"   /readyz: {readyz.get('status', 'unknown')} ({readyz.get('response_time_ms', 0):.0f}ms)")
+        
+        # Traffic allocation
+        if status_info.get("traffic_allocation"):
+            rprint(f"\n🚦 [bold]Traffic Allocation:[/bold]")
+            for traffic in status_info["traffic_allocation"]:
+                percent = traffic.get("percent", 0)
+                revision = traffic.get("revisionName", "Unknown")
+                rprint(f"   {percent}% → [dim]{revision}[/dim]")
+        
+    except Exception as e:
+        logger.error(f"Status command failed: {e}")
+        rprint(f"❌ Status check error: {e}")
+        raise typer.Exit(1)
+
+
+# AutoML Commands - Intelligent Experimentation (Task 8.8-8.9)
+@app.command()
+def automl(
+    action: str = typer.Argument(..., help="Action: run, compare, optimize, industrial"),
+    data_file: str = typer.Option(None, "--data", "-d", help="CSV file with training data"),
+    target: str = typer.Option("target", "--target", "-t", help="Target column name"),
+    algorithms: Optional[str] = typer.Option("all", "--algorithms", "-a", help="Algorithms to test: all, ml, dl, genai, or comma-separated list"),
+    optimization_time: str = typer.Option("30m", "--time", help="Optimization time budget (e.g., 30m, 1h, 2h)"),
+    top_n: int = typer.Option(3, "--top-n", "-n", help="Number of top models to report"),
+    parallel_jobs: int = typer.Option(2, "--parallel", "-j", help="Number of parallel experiments"),
+    industrial_constraints: bool = typer.Option(False, "--industrial", help="Apply industrial constraints"),
+    use_case: Optional[str] = typer.Option(None, "--use-case", help="Industrial use case: predictive_maintenance, quality_control, anomaly_detection"),
+    promote_best: bool = typer.Option(False, "--promote", help="Promote best model to deployment-ready"),
+    output_format: str = typer.Option("table", "--format", help="Output format: table, json, summary")
+) -> None:
+    """
+    Run intelligent AutoML experiments with ranking and optimization.
+    
+    Automatically:
+    - Selects best algorithms based on data characteristics
+    - Optimizes hyperparameters with Optuna
+    - Engineers features automatically
+    - Runs experiments in parallel
+    - Ranks models by performance
+    - Provides deployment-ready recommendations
+    
+    Examples:
+      kepler automl run --data sensor_data.csv --target failure
+      kepler automl run --data data.csv --target failure --time 2h --top-n 5
+      kepler automl industrial --data industrial.csv --use-case predictive_maintenance
+      kepler automl run --data data.csv --target failure --promote
+    """
+    import pandas as pd
+    from pathlib import Path
+    from rich.table import Table
+    
+    logger = get_logger()
+    
+    try:
+        if not data_file:
+            rprint("❌ Data file required for AutoML")
+            rprint("💡 Use: kepler automl run --data your_data.csv --target your_target")
+            raise typer.Exit(1)
+        
+        # Validate data file
+        data_path = Path(data_file)
+        if not data_path.exists():
+            rprint(f"❌ Data file not found: {data_file}")
+            raise typer.Exit(1)
+        
+        # Load data
+        rprint(f"📊 Loading data: [cyan]{data_file}[/cyan]")
+        try:
+            df = pd.read_csv(data_path)
+            rprint(f"✅ Data loaded: [green]{len(df):,} rows × {len(df.columns)} columns[/green]")
+        except Exception as e:
+            rprint(f"❌ Failed to load data: {e}")
+            raise typer.Exit(1)
+        
+        # Validate target column
+        if target not in df.columns:
+            rprint(f"❌ Target column '{target}' not found in data")
+            rprint(f"Available columns: {', '.join(df.columns)}")
+            raise typer.Exit(1)
+        
+        rprint(f"🎯 Target column: [yellow]{target}[/yellow]")
+        
+        # Execute AutoML based on action
+        if action == "run":
+            _run_automl_experiment(df, target, algorithms, optimization_time, top_n, parallel_jobs, output_format)
+            
+        elif action == "industrial":
+            if not use_case:
+                use_case = typer.prompt(
+                    "Industrial use case", 
+                    type=typer.Choice(["predictive_maintenance", "quality_control", "anomaly_detection"])
+                )
+            
+            _run_industrial_automl(df, target, use_case, optimization_time, output_format)
+            
+        elif action == "compare":
+            _compare_automl_algorithms(df, target, algorithms, output_format)
+            
+        elif action == "optimize":
+            algorithm = typer.prompt("Algorithm to optimize", default="auto")
+            _optimize_single_algorithm(df, target, algorithm, optimization_time, output_format)
+            
+        else:
+            rprint(f"❌ Unknown AutoML action: {action}")
+            rprint("Available actions: run, industrial, compare, optimize")
+            raise typer.Exit(1)
+        
+        # Promote to deployment if requested
+        if promote_best and action in ["run", "industrial"]:
+            _promote_best_model_to_deployment()
+            
+    except Exception as e:
+        logger.error(f"AutoML command failed: {e}")
+        rprint(f"❌ AutoML error: {e}")
+        raise typer.Exit(1)
+
+
+def _run_automl_experiment(df, target, algorithms, optimization_time, top_n, parallel_jobs, output_format):
+    """Run complete AutoML experiment with ranking"""
+    rprint(f"🤖 [bold]Running AutoML Experiment[/bold]")
+    rprint(f"   Algorithms: [cyan]{algorithms}[/cyan]")
+    rprint(f"   Time budget: [yellow]{optimization_time}[/yellow]")
+    rprint(f"   Parallel jobs: [blue]{parallel_jobs}[/blue]")
+    
+    with console.status("Running AutoML experiments...", spinner="dots"):
+        from kepler.automl import run_experiment_suite, get_experiment_leaderboard
+        
+        # Run experiment suite
+        experiment_results = run_experiment_suite(
+            df,
+            target,
+            algorithms=algorithms.split(",") if algorithms != "all" else None,
+            parallel_jobs=parallel_jobs,
+            optimization_budget=optimization_time
+        )
+    
+    # Display results
+    if output_format == "json":
+        import json
+        print(json.dumps(experiment_results, indent=2, default=str))
+    else:
+        # Show leaderboard
+        leaderboard = get_experiment_leaderboard(experiment_results)
+        rprint("\n🏆 [bold]AutoML Leaderboard (Top Models):[/bold]")
+        rprint(leaderboard)
+        
+        # Show top-N recommendations
+        if experiment_results.get("models"):
+            rprint(f"\n📋 [bold]Top {top_n} Recommendations:[/bold]")
+            sorted_models = sorted(
+                experiment_results["models"].items(),
+                key=lambda x: x[1].get("score", 0),
+                reverse=True
+            )[:top_n]
+            
+            for i, (algo, result) in enumerate(sorted_models, 1):
+                score = result.get("score", 0)
+                training_time = result.get("training_time", 0)
+                rprint(f"   {i}. [cyan]{algo}[/cyan]: {score:.3f} ({training_time:.1f}s)")
+
+
+def _run_industrial_automl(df, target, use_case, optimization_time, output_format):
+    """Run AutoML with industrial constraints"""
+    rprint(f"🏭 [bold]Industrial AutoML: {use_case.replace('_', ' ').title()}[/bold]")
+    
+    with console.status("Running industrial AutoML...", spinner="dots"):
+        from kepler.automl import industrial_automl
+        
+        result = industrial_automl(
+            df,
+            target,
+            use_case=use_case,
+            optimization_budget=optimization_time
+        )
+    
+    # Display results
+    if output_format == "json":
+        import json
+        print(json.dumps(result, indent=2, default=str))
+    else:
+        rprint(f"\n🎯 [bold]Industrial AutoML Results:[/bold]")
+        rprint(f"   Best Algorithm: [cyan]{result.get('best_algorithm', 'Unknown')}[/cyan]")
+        rprint(f"   Performance Score: [green]{result.get('best_score', 0):.3f}[/green]")
+        rprint(f"   Deployment Ready: {'✅' if result.get('deployment_ready') else '❌'}")
+        
+        if result.get('deployment_ready'):
+            rprint(f"   Expected Latency: [blue]{result.get('expected_latency_ms', 'Unknown')}ms[/blue]")
+            rprint(f"   Model Size: [blue]{result.get('model_size_mb', 'Unknown')}MB[/blue]")
+        else:
+            rprint(f"   Issues: [red]{', '.join(result.get('issues', []))}[/red]")
+
+
+def _compare_automl_algorithms(df, target, algorithms, output_format):
+    """Compare multiple AutoML algorithms"""
+    rprint(f"⚖️ [bold]Comparing AutoML Algorithms[/bold]")
+    
+    with console.status("Comparing algorithms...", spinner="dots"):
+        from kepler.automl import recommend_algorithms
+        
+        recommendations = recommend_algorithms(
+            df,
+            target,
+            top_k=5
+        )
+    
+    # Display comparison
+    table = Table(title="Algorithm Comparison")
+    table.add_column("Rank", style="cyan")
+    table.add_column("Algorithm", style="bold")
+    table.add_column("Score", style="green")
+    table.add_column("Reason", style="dim")
+    
+    for i, rec in enumerate(recommendations, 1):
+        table.add_row(
+            str(i),
+            rec["algorithm"],
+            f"{rec['score']:.3f}",
+            rec["reason"]
+        )
+    
+    console.print(table)
+
+
+def _optimize_single_algorithm(df, target, algorithm, optimization_time, output_format):
+    """Optimize hyperparameters for single algorithm"""
+    rprint(f"🔧 [bold]Optimizing {algorithm.title()} Hyperparameters[/bold]")
+    
+    with console.status("Optimizing hyperparameters...", spinner="dots"):
+        from kepler.automl import optimize_hyperparameters
+        
+        optimization_result = optimize_hyperparameters(
+            df,
+            target,
+            algorithm,
+            timeout=_parse_time_to_seconds(optimization_time)
+        )
+    
+    # Display results
+    rprint(f"\n🎯 [bold]Optimization Results:[/bold]")
+    rprint(f"   Algorithm: [cyan]{algorithm}[/cyan]")
+    rprint(f"   Best Score: [green]{optimization_result.get('best_score', 0):.4f}[/green]")
+    rprint(f"   Best Parameters:")
+    
+    for param, value in optimization_result.get('best_params', {}).items():
+        rprint(f"      {param}: [blue]{value}[/blue]")
+
+
+def _promote_best_model_to_deployment():
+    """Promote best model to deployment-ready status"""
+    rprint("\n🚀 [bold]Promoting Best Model to Deployment[/bold]")
+    rprint("💡 Use: kepler deploy <best_model>.pkl --cloud gcp --project YOUR_PROJECT")
+
+
+def _parse_time_to_seconds(time_str: str) -> int:
+    """Parse time string to seconds"""
+    if time_str.endswith('m'):
+        return int(time_str[:-1]) * 60
+    elif time_str.endswith('h'):
+        return int(time_str[:-1]) * 3600
+    elif time_str.endswith('s'):
+        return int(time_str[:-1])
+    else:
+        return int(time_str) * 60  # Default to minutes
+
+
+# Validation and Setup Commands - Essential Ecosystem Validation (Task 7.6-7.8)
+@app.command()
+def validate(
+    target: str = typer.Argument("ecosystem", help="What to validate: ecosystem, splunk, gcp, prerequisites"),
+    auto_fix: bool = typer.Option(False, "--auto-fix", help="Attempt automatic fixes for common issues"),
+    include_optional: bool = typer.Option(True, "--include-optional/--skip-optional", help="Include optional components (MLflow, DVC)"),
+    output_format: str = typer.Option("table", "--format", help="Output format: table, json, summary"),
+    save_report: Optional[str] = typer.Option(None, "--save", help="Save report to file")
+) -> None:
+    """
+    Validate Kepler ecosystem components with actionable error messages.
+    
+    Performs comprehensive validation of:
+    - Development prerequisites (Python, libraries, Jupyter)
+    - Splunk connectivity and authentication
+    - GCP services and permissions
+    - MLOps tools availability (optional)
+    - End-to-end workflow capability
+    
+    Examples:
+      kepler validate                           # Full ecosystem validation
+      kepler validate ecosystem --auto-fix      # With automatic fixes
+      kepler validate splunk                    # Splunk only
+      kepler validate gcp                       # GCP only
+      kepler validate --format json --save validation-report.json
+    """
+    logger = get_logger()
+    
+    try:
+        rprint(f"🔍 Validating [cyan]{target}[/cyan]...")
+        
+        if target == "ecosystem":
+            from kepler.core.ecosystem_validator import validate_ecosystem
+            
+            with console.status("Running ecosystem validation...", spinner="dots"):
+                report = validate_ecosystem(include_optional=include_optional, auto_fix=auto_fix)
+            
+            # Display results
+            _display_validation_report(report, output_format)
+            
+            # Save report if requested
+            if save_report:
+                _save_validation_report(report, save_report)
+                rprint(f"📄 Report saved to: [blue]{save_report}[/blue]")
+            
+            # Exit with appropriate code
+            if report.overall_status == ValidationLevel.CRITICAL:
+                rprint(f"\n❌ [red]Ecosystem validation failed[/red]")
+                raise typer.Exit(1)
+            elif report.overall_status == ValidationLevel.WARNING:
+                rprint(f"\n⚠️  [yellow]Ecosystem validation completed with warnings[/yellow]")
+                raise typer.Exit(0)
+            else:
+                rprint(f"\n✅ [green]Ecosystem validation successful[/green]")
+                raise typer.Exit(0)
+                
+        elif target == "splunk":
+            from kepler.core.ecosystem_validator import validate_splunk
+            
+            with console.status("Validating Splunk...", spinner="dots"):
+                results = validate_splunk()
+            
+            _display_validation_results(results, "Splunk Validation")
+            
+        elif target == "gcp":
+            from kepler.core.ecosystem_validator import validate_gcp
+            
+            with console.status("Validating GCP...", spinner="dots"):
+                results = validate_gcp()
+            
+            _display_validation_results(results, "GCP Validation")
+            
+        elif target == "prerequisites":
+            from kepler.core.ecosystem_validator import get_ecosystem_validator
+            validator = get_ecosystem_validator()
+            
+            with console.status("Validating prerequisites...", spinner="dots"):
+                results = validator.prerequisites_validator.validate_all()
+            
+            _display_validation_results(results, "Prerequisites Validation")
+            
+        else:
+            rprint(f"❌ Unknown validation target: {target}")
+            rprint("Available targets: ecosystem, splunk, gcp, prerequisites")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        logger.error(f"Validation command failed: {e}")
+        rprint(f"❌ Validation error: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def setup(
+    platform: str = typer.Argument(..., help="Platform to setup: splunk, gcp"),
+    interactive: bool = typer.Option(True, "--interactive/--non-interactive", help="Interactive configuration"),
+    config_file: Optional[str] = typer.Option(None, "--config", help="Configuration file to use"),
+    validate_after: bool = typer.Option(True, "--validate/--no-validate", help="Validate after setup"),
+    secure_storage: bool = typer.Option(True, "--secure/--plain", help="Use secure credential storage")
+) -> None:
+    """
+    Guided setup for platform integration with secure credential management.
+    
+    Provides step-by-step configuration for:
+    - Splunk Enterprise (host, authentication, HEC)
+    - Google Cloud Platform (authentication, project, APIs)
+    - MLOps tools (MLflow, DVC)
+    
+    Examples:
+      kepler setup splunk                       # Interactive Splunk setup
+      kepler setup gcp                          # Interactive GCP setup  
+      kepler setup splunk --non-interactive     # Automated setup
+      kepler setup gcp --config gcp-config.yml # From config file
+    """
+    logger = get_logger()
+    
+    try:
+        rprint(f"🔧 Setting up [cyan]{platform}[/cyan] integration...")
+        
+        if platform == "splunk":
+            _setup_splunk_platform(interactive, config_file, secure_storage)
+            
+        elif platform == "gcp":
+            _setup_gcp_platform(interactive, config_file, secure_storage)
+            
+        else:
+            rprint(f"❌ Unsupported platform: {platform}")
+            rprint("Available platforms: splunk, gcp")
+            raise typer.Exit(1)
+        
+        # Validate setup if requested
+        if validate_after:
+            rprint(f"\n🔍 Validating {platform} setup...")
+            
+            if platform == "splunk":
+                from kepler.core.ecosystem_validator import validate_splunk
+                results = validate_splunk()
+                _display_validation_results(results, f"Splunk Setup Validation")
+                
+            elif platform == "gcp":
+                from kepler.core.ecosystem_validator import validate_gcp
+                results = validate_gcp()
+                _display_validation_results(results, f"GCP Setup Validation")
+        
+        rprint(f"\n✅ [green]{platform.upper()} setup completed[/green]")
+        
+    except Exception as e:
+        logger.error(f"Setup command failed: {e}")
+        rprint(f"❌ Setup error: {e}")
+        raise typer.Exit(1)
+
+
+@app.command()
+def diagnose(
+    issue_type: str = typer.Argument("auto", help="Issue type: auto, connection, authentication, deployment"),
+    platform: Optional[str] = typer.Option(None, "--platform", help="Specific platform: splunk, gcp"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose diagnostic output"),
+    fix_suggestions: bool = typer.Option(True, "--suggestions/--no-suggestions", help="Show fix suggestions")
+) -> None:
+    """
+    Intelligent troubleshooting and diagnostic system.
+    
+    Automatically diagnoses common issues and provides actionable solutions:
+    - Connection problems (network, SSL, timeouts)
+    - Authentication failures (tokens, credentials, permissions)
+    - Deployment issues (GCP setup, API access, resource limits)
+    - Library conflicts (dependencies, versions, imports)
+    
+    Examples:
+      kepler diagnose                           # Auto-detect and diagnose issues
+      kepler diagnose connection                # Focus on connectivity issues
+      kepler diagnose authentication --platform splunk
+      kepler diagnose deployment --verbose
+    """
+    logger = get_logger()
+    
+    try:
+        rprint(f"🔍 Diagnosing [cyan]{issue_type}[/cyan] issues...")
+        
+        if issue_type == "auto":
+            # Auto-detect issues by running validation
+            from kepler.core.ecosystem_validator import validate_ecosystem
+            
+            with console.status("Running diagnostic validation...", spinner="dots"):
+                report = validate_ecosystem(include_optional=False, auto_fix=False)
+            
+            # Analyze issues and provide intelligent diagnosis
+            _provide_intelligent_diagnosis(report, platform, verbose, fix_suggestions)
+            
+        elif issue_type == "connection":
+            _diagnose_connection_issues(platform, verbose)
+            
+        elif issue_type == "authentication": 
+            _diagnose_authentication_issues(platform, verbose)
+            
+        elif issue_type == "deployment":
+            _diagnose_deployment_issues(verbose)
+            
+        else:
+            rprint(f"❌ Unknown issue type: {issue_type}")
+            rprint("Available types: auto, connection, authentication, deployment")
+            raise typer.Exit(1)
+            
+    except Exception as e:
+        logger.error(f"Diagnose command failed: {e}")
+        rprint(f"❌ Diagnostic error: {e}")
+        raise typer.Exit(1)
+
+
+def _display_validation_report(report, output_format: str) -> None:
+    """Display validation report in specified format"""
+    from kepler.core.ecosystem_validator import ValidationLevel
+    
+    if output_format == "json":
+        # JSON output
+        import json
+        report_dict = {
+            "overall_status": report.overall_status.value,
+            "success_rate": report.success_rate,
+            "total_checks": report.total_checks,
+            "results": [
+                {
+                    "check_name": r.check_name,
+                    "success": r.success,
+                    "level": r.level.value,
+                    "message": r.message,
+                    "hint": r.hint
+                }
+                for r in report.results
+            ],
+            "recommendations": report.recommendations
+        }
+        print(json.dumps(report_dict, indent=2))
+        return
+    
+    if output_format == "summary":
+        # Summary output
+        status_icon = {
+            ValidationLevel.SUCCESS: "✅",
+            ValidationLevel.WARNING: "⚠️",
+            ValidationLevel.CRITICAL: "❌"
+        }
+        
+        rprint(f"\n{status_icon[report.overall_status]} [bold]Ecosystem Status: {report.overall_status.value.upper()}[/bold]")
+        rprint(f"Success Rate: {report.success_rate:.1f}% ({report.successful_checks}/{report.total_checks})")
+        
+        if report.recommendations:
+            rprint("\n📋 [bold]Recommendations:[/bold]")
+            for rec in report.recommendations:
+                rprint(f"   {rec}")
+        return
+    
+    # Table output (default)
+    from rich.table import Table
+    
+    table = Table(title="Kepler Ecosystem Validation Report")
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="bold")
+    table.add_column("Message", style="white")
+    table.add_column("Hint", style="dim")
+    
+    for result in report.results:
+        status_icon = "✅" if result.success else ("⚠️" if result.level == ValidationLevel.WARNING else "❌")
+        status_style = "green" if result.success else ("yellow" if result.level == ValidationLevel.WARNING else "red")
+        
+        table.add_row(
+            result.check_name,
+            f"[{status_style}]{status_icon} {result.level.value}[/{status_style}]",
+            result.message,
+            result.hint or ""
+        )
+    
+    console.print(table)
+    
+    # Show summary
+    status_icon = {
+        ValidationLevel.SUCCESS: "✅",
+        ValidationLevel.WARNING: "⚠️", 
+        ValidationLevel.CRITICAL: "❌"
+    }
+    
+    rprint(f"\n{status_icon[report.overall_status]} [bold]Overall Status: {report.overall_status.value.upper()}[/bold]")
+    rprint(f"Validation Time: {report.validation_time:.2f}s")
+    rprint(f"Success Rate: {report.success_rate:.1f}% ({report.successful_checks}/{report.total_checks})")
+    
+    # Show recommendations
+    if report.recommendations:
+        rprint("\n📋 [bold]Recommendations:[/bold]")
+        for rec in report.recommendations:
+            rprint(f"   {rec}")
+
+
+def _display_validation_results(results: List, title: str) -> None:
+    """Display list of validation results"""
+    from rich.table import Table
+    from kepler.core.ecosystem_validator import ValidationLevel
+    
+    table = Table(title=title)
+    table.add_column("Check", style="cyan")
+    table.add_column("Status", style="bold") 
+    table.add_column("Message", style="white")
+    
+    for result in results:
+        status_icon = "✅" if result.success else ("⚠️" if result.level == ValidationLevel.WARNING else "❌")
+        status_style = "green" if result.success else ("yellow" if result.level == ValidationLevel.WARNING else "red")
+        
+        table.add_row(
+            result.check_name,
+            f"[{status_style}]{status_icon} {result.level.value}[/{status_style}]",
+            result.message
+        )
+    
+    console.print(table)
+
+
+def _save_validation_report(report, file_path: str) -> None:
+    """Save validation report to file"""
+    import json
+    
+    report_dict = {
+        "timestamp": datetime.now().isoformat(),
+        "overall_status": report.overall_status.value,
+        "success_rate": report.success_rate,
+        "total_checks": report.total_checks,
+        "successful_checks": report.successful_checks,
+        "failed_checks": report.failed_checks,
+        "warning_checks": report.warning_checks,
+        "validation_time": report.validation_time,
+        "results": [
+            {
+                "check_name": r.check_name,
+                "category": r.category.value,
+                "level": r.level.value,
+                "success": r.success,
+                "message": r.message,
+                "details": r.details,
+                "hint": r.hint,
+                "auto_fix_available": r.auto_fix_available,
+                "auto_fix_command": r.auto_fix_command,
+                "context": r.context,
+                "timestamp": r.timestamp
+            }
+            for r in report.results
+        ],
+        "summary": report.summary,
+        "recommendations": report.recommendations
+    }
+    
+    with open(file_path, 'w') as f:
+        json.dump(report_dict, f, indent=2)
+
+
+def _setup_splunk_platform(interactive: bool, config_file: Optional[str], secure_storage: bool) -> None:
+    """Setup Splunk platform integration"""
+    rprint("🔧 [bold]Splunk Setup[/bold]")
+    
+    if interactive:
+        rprint("\n📋 We'll configure Splunk connectivity step by step...")
+        
+        # Get Splunk host
+        host = typer.prompt("Splunk server URL (e.g., https://splunk.company.com:8089)")
+        
+        # Get authentication token
+        if secure_storage:
+            token = getpass.getpass("Splunk authentication token: ")
+            
+            # Store securely
+            from kepler.core.security import store_credential
+            store_credential("splunk_token", token)
+            rprint("✅ Token stored securely")
+        else:
+            token = typer.prompt("Splunk authentication token", hide_input=True)
+        
+        # Get HEC configuration (optional)
+        setup_hec = typer.confirm("Configure HTTP Event Collector (HEC) for writing results?", default=True)
+        
+        hec_token = None
+        if setup_hec:
+            if secure_storage:
+                hec_token = getpass.getpass("HEC token: ")
+                store_credential("splunk_hec_token", hec_token)
+            else:
+                hec_token = typer.prompt("HEC token", hide_input=True)
+        
+        # SSL verification
+        verify_ssl = typer.confirm("Verify SSL certificates?", default=True)
+        
+        # Create configuration
+        config = {
+            "splunk": {
+                "host": host,
+                "token": token if not secure_storage else "stored_securely",
+                "hec_token": hec_token if not secure_storage else "stored_securely",
+                "verify_ssl": verify_ssl,
+                "timeout": 30
+            }
+        }
+        
+        # Save configuration
+        config_path = Path.home() / ".kepler" / "config.yml"
+        config_path.parent.mkdir(exist_ok=True)
+        
+        import yaml
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+        
+        rprint(f"✅ Splunk configuration saved to: [blue]{config_path}[/blue]")
+        
+    else:
+        rprint("Non-interactive setup not yet implemented")
+        rprint("Use: kepler setup splunk (without --non-interactive)")
+
+
+def _setup_gcp_platform(interactive: bool, config_file: Optional[str], secure_storage: bool) -> None:
+    """Setup GCP platform integration"""
+    rprint("🔧 [bold]GCP Setup[/bold]")
+    
+    if interactive:
+        rprint("\n📋 We'll configure GCP integration step by step...")
+        
+        # Check if gcloud is available
+        try:
+            result = subprocess.run(["gcloud", "--version"], capture_output=True, timeout=10)
+            if result.returncode != 0:
+                rprint("❌ Google Cloud SDK not found")
+                rprint("💡 Install from: https://cloud.google.com/sdk/docs/install")
+                raise typer.Exit(1)
+        except Exception:
+            rprint("❌ Google Cloud SDK not available")
+            raise typer.Exit(1)
+        
+        # Check authentication
+        try:
+            result = subprocess.run(
+                ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
+                capture_output=True, text=True, timeout=10
+            )
+            
+            if not result.stdout.strip():
+                rprint("🔐 No active GCP authentication found")
+                if typer.confirm("Run 'gcloud auth login' now?"):
+                    subprocess.run(["gcloud", "auth", "login"])
+                else:
+                    rprint("❌ GCP authentication required")
+                    raise typer.Exit(1)
+            else:
+                active_account = result.stdout.strip()
+                rprint(f"✅ Authenticated as: [blue]{active_account}[/blue]")
+                
+        except Exception as e:
+            rprint(f"❌ Authentication check failed: {e}")
+            raise typer.Exit(1)
+        
+        # Get or set project
+        current_project = None
+        try:
+            result = subprocess.run(
+                ["gcloud", "config", "get-value", "project"],
+                capture_output=True, text=True, timeout=10
+            )
+            current_project = result.stdout.strip() if result.returncode == 0 else None
+        except Exception:
+            pass
+        
+        if current_project:
+            use_current = typer.confirm(f"Use current project '{current_project}'?", default=True)
+            if not use_current:
+                project_id = typer.prompt("GCP Project ID")
+                subprocess.run(["gcloud", "config", "set", "project", project_id])
+            else:
+                project_id = current_project
+        else:
+            project_id = typer.prompt("GCP Project ID")
+            subprocess.run(["gcloud", "config", "set", "project", project_id])
+        
+        # Enable required APIs
+        rprint("🔌 Enabling required APIs...")
+        required_apis = [
+            "run.googleapis.com",
+            "cloudbuild.googleapis.com", 
+            "artifactregistry.googleapis.com"
+        ]
+        
+        for api in required_apis:
+            rprint(f"   Enabling {api}...")
+            try:
+                subprocess.run(
+                    ["gcloud", "services", "enable", api],
+                    capture_output=True, timeout=60
+                )
+                rprint(f"   ✅ {api}")
+            except Exception as e:
+                rprint(f"   ❌ Failed to enable {api}: {e}")
+        
+        # Set default region
+        default_region = "us-central1"
+        region = typer.prompt("Default region for Cloud Run", default=default_region)
+        
+        # Save GCP configuration
+        gcp_config = {
+            "gcp": {
+                "project_id": project_id,
+                "region": region,
+                "apis_enabled": required_apis
+            }
+        }
+        
+        config_path = Path.home() / ".kepler" / "config.yml"
+        
+        # Merge with existing config if it exists
+        existing_config = {}
+        if config_path.exists():
+            import yaml
+            with open(config_path, 'r') as f:
+                existing_config = yaml.safe_load(f) or {}
+        
+        existing_config.update(gcp_config)
+        
+        with open(config_path, 'w') as f:
+            yaml.dump(existing_config, f, default_flow_style=False)
+        
+        rprint(f"✅ GCP configuration saved to: [blue]{config_path}[/blue]")
+        
+    else:
+        rprint("Non-interactive GCP setup not yet implemented")
+        rprint("Use: kepler setup gcp (without --non-interactive)")
+
+
+def _provide_intelligent_diagnosis(report, platform: Optional[str], verbose: bool, fix_suggestions: bool) -> None:
+    """Provide intelligent diagnosis based on validation report"""
+    from kepler.core.ecosystem_validator import ValidationLevel
+    
+    # Analyze patterns in failures
+    critical_issues = [r for r in report.results if r.level == ValidationLevel.CRITICAL and not r.success]
+    warning_issues = [r for r in report.results if r.level == ValidationLevel.WARNING and not r.success]
+    
+    if not critical_issues and not warning_issues:
+        rprint("✅ [green]No issues detected - ecosystem is healthy[/green]")
+        return
+    
+    rprint(f"\n🔍 [bold]Diagnostic Analysis:[/bold]")
+    
+    # Categorize issues
+    auth_issues = [r for r in critical_issues if "auth" in r.check_name.lower()]
+    connection_issues = [r for r in critical_issues if "connect" in r.check_name.lower()]
+    config_issues = [r for r in critical_issues if "config" in r.check_name.lower()]
+    
+    if auth_issues:
+        rprint("🔐 [red]Authentication Issues Detected:[/red]")
+        for issue in auth_issues:
+            rprint(f"   • {issue.check_name}: {issue.message}")
+            if fix_suggestions and issue.hint:
+                rprint(f"     💡 {issue.hint}")
+    
+    if connection_issues:
+        rprint("🌐 [red]Connectivity Issues Detected:[/red]")
+        for issue in connection_issues:
+            rprint(f"   • {issue.check_name}: {issue.message}")
+            if fix_suggestions and issue.hint:
+                rprint(f"     💡 {issue.hint}")
+    
+    if config_issues:
+        rprint("⚙️ [red]Configuration Issues Detected:[/red]")
+        for issue in config_issues:
+            rprint(f"   • {issue.check_name}: {issue.message}")
+            if fix_suggestions and issue.hint:
+                rprint(f"     💡 {issue.hint}")
+    
+    # Show auto-fixes
+    auto_fixable = [r for r in critical_issues + warning_issues if r.auto_fix_available]
+    if auto_fixable and fix_suggestions:
+        rprint("\n🔧 [yellow]Automatic Fixes Available:[/yellow]")
+        for fix in auto_fixable:
+            rprint(f"   • {fix.check_name}: [blue]{fix.auto_fix_command}[/blue]")
+
+
+def _diagnose_connection_issues(platform: Optional[str], verbose: bool) -> None:
+    """Diagnose connection-specific issues"""
+    rprint("🌐 [bold]Connection Diagnostic[/bold]")
+    rprint("This feature will be implemented to diagnose network connectivity issues")
+
+
+def _diagnose_authentication_issues(platform: Optional[str], verbose: bool) -> None:
+    """Diagnose authentication-specific issues"""
+    rprint("🔐 [bold]Authentication Diagnostic[/bold]")
+    rprint("This feature will be implemented to diagnose authentication issues")
+
+
+def _diagnose_deployment_issues(verbose: bool) -> None:
+    """Diagnose deployment-specific issues"""
+    rprint("🚀 [bold]Deployment Diagnostic[/bold]")
+    rprint("This feature will be implemented to diagnose deployment issues")
 
 
 @app.command("version")

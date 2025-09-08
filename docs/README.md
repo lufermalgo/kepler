@@ -39,6 +39,12 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
   - Trazabilidad end-to-end
   - Gestión de releases multi-componente
 
+- **[Validation Guide](./VALIDATION_GUIDE.md)** - Validación y troubleshooting
+  - Validación completa de ecosistemas
+  - Mensajes accionables y auto-fixes
+  - Setup guiado de plataformas
+  - Troubleshooting inteligente
+
 ### 🔧 Información Técnica
 - **[Estado de Validación](./VALIDATION_STATUS.md)** - Estado técnico detallado
   - Funcionalidades validadas con datos reales
@@ -82,6 +88,7 @@ Bienvenido a la documentación completa del Kepler Framework. Esta sección cont
 | SDK_GUIDE.md | ✅ Actualizado | Científicos de datos | Septiembre 2025 |
 | AUTOML_GUIDE.md | ✅ Nuevo | Científicos de datos | Septiembre 2025 |
 | VERSIONING_GUIDE.md | ✅ Nuevo | Ingenieros MLOps | Septiembre 2025 |
+| VALIDATION_GUIDE.md | ✅ Nuevo | DevOps/Administradores | Septiembre 2025 |
 | CUSTOM_LIBRARIES_GUIDE.md | ✅ Completo | Desarrolladores | Septiembre 2025 |
 | VALIDATION_STATUS.md | ✅ Actual | Desarrolladores | Septiembre 2025 |
 | Notebooks de ejemplo | ✅ Validados | Científicos de datos | Septiembre 2025 |
