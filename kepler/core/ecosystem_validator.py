@@ -495,64 +495,34 @@ class SplunkValidator:
             )
     
     def _validate_connectivity(self) -> ValidationResult:
-        """Validate Splunk network connectivity"""
+        """Validate Splunk network connectivity using official SDK"""
         try:
+            from kepler.connectors.splunk import create_splunk_connector
             from kepler.core.config import load_config
+            
             config = load_config()
             
-            # Test basic connectivity
-            response = requests.get(
-                f"{config.splunk.host}/services/server/info",
-                headers={"Authorization": f"Bearer {config.splunk.token}"},
-                verify=config.splunk.verify_ssl,
-                timeout=10
+            # Test connectivity using official Splunk SDK (same as authentication)
+            connector = create_splunk_connector(
+                host=config.splunk.host,
+                token=config.splunk.token,
+                verify_ssl=config.splunk.verify_ssl
             )
             
-            if response.status_code == 200:
-                server_info = response.json()
-                splunk_version = server_info.get("entry", [{}])[0].get("content", {}).get("version")
-                
-                return ValidationResult(
-                    check_name="Splunk connectivity",
-                    category=ValidationCategory.CONNECTIVITY,
-                    level=ValidationLevel.SUCCESS,
-                    success=True,
-                    message="Splunk server is accessible",
-                    context={
-                        "splunk_version": splunk_version,
-                        "response_time_ms": response.elapsed.total_seconds() * 1000
-                    }
-                )
-            else:
-                return ValidationResult(
-                    check_name="Splunk connectivity",
-                    category=ValidationCategory.CONNECTIVITY,
-                    level=ValidationLevel.CRITICAL,
-                    success=False,
-                    message=f"Splunk server returned HTTP {response.status_code}",
-                    details=response.text,
-                    hint="Check Splunk server URL and network connectivity"
-                )
-                
-        except requests.exceptions.SSLError:
+            # Test basic server info via SDK
+            server_info = connector.client.info
+            splunk_version = server_info.get('version', 'Unknown')
+            
             return ValidationResult(
                 check_name="Splunk connectivity",
                 category=ValidationCategory.CONNECTIVITY,
-                level=ValidationLevel.CRITICAL,
-                success=False,
-                message="SSL certificate verification failed",
-                hint="Set verify_ssl: false in config or update certificates",
-                auto_fix_available=True,
-                auto_fix_command="kepler config set splunk.verify_ssl false"
-            )
-        except requests.exceptions.ConnectionError:
-            return ValidationResult(
-                check_name="Splunk connectivity",
-                category=ValidationCategory.CONNECTIVITY,
-                level=ValidationLevel.CRITICAL,
-                success=False,
-                message="Cannot connect to Splunk server",
-                hint="Check Splunk server URL and network connectivity"
+                level=ValidationLevel.SUCCESS,
+                success=True,
+                message="Splunk server is accessible via SDK",
+                context={
+                    "splunk_version": splunk_version,
+                    "connection_method": "splunk-sdk"
+                }
             )
         except Exception as e:
             return ValidationResult(
@@ -996,6 +966,7 @@ class PrerequisitesValidator:
         results.append(self._validate_kepler_installation())
         results.append(self._validate_library_environment())
         results.append(self._validate_jupyter_availability())
+        results.append(self._validate_splunk_sdk())
         
         return results
     
@@ -1176,6 +1147,41 @@ class PrerequisitesValidator:
                 hint="Install with: pip install jupyter",
                 auto_fix_available=True,
                 auto_fix_command="pip install jupyter"
+            )
+    
+    def _validate_splunk_sdk(self) -> ValidationResult:
+        """Validate Splunk SDK availability"""
+        try:
+            import splunklib.client as client
+            import splunklib.results as results
+            
+            # Test basic SDK functionality
+            sdk_version = getattr(client, '__version__', 'Unknown')
+            
+            return ValidationResult(
+                check_name="Splunk SDK",
+                category=ValidationCategory.PREREQUISITES,
+                level=ValidationLevel.SUCCESS,
+                success=True,
+                message="Splunk SDK is available and ready",
+                context={
+                    "sdk_version": sdk_version,
+                    "modules": ["splunklib.client", "splunklib.results"]
+                },
+                hint="Use official Splunk SDK for all Splunk operations"
+            )
+            
+        except ImportError as e:
+            return ValidationResult(
+                check_name="Splunk SDK",
+                category=ValidationCategory.PREREQUISITES,
+                level=ValidationLevel.CRITICAL,
+                success=False,
+                message="Splunk SDK not installed",
+                details=str(e),
+                hint="Install with: pip install splunk-sdk",
+                auto_fix_available=True,
+                auto_fix_command="pip install splunk-sdk"
             )
     
     def _validate_authentication(self) -> ValidationResult:
