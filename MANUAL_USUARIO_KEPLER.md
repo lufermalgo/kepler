@@ -130,8 +130,8 @@ kepler validate prerequisites
 ### **Paso 8: Instalar Dependencias MLOps (Opcional)**
 
 ```bash
-# Instalar herramientas MLOps recomendadas
-pip install mlflow dvc
+# Instalar herramientas MLOps usando Kepler
+kepler libs install mlflow dvc
 ```
 
 ### **Paso 9: Validar Ecosistema Completo**
