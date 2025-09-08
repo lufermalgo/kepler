@@ -637,25 +637,30 @@ class SplunkValidator:
                     documentation_url="https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector"
                 )
             
-            # Test HEC connectivity
-            test_event = {
-                "time": time.time(),
-                "source": "kepler-validator",
-                "sourcetype": "kepler:test",
-                "event": {"message": "Kepler validation test", "timestamp": datetime.now().isoformat()}
-            }
+            # Test HEC connectivity using official HecWriter
+            from kepler.connectors.hec import HecWriter
             
-            response = requests.post(
-                config.splunk.hec_url,
-                headers={
-                    "Authorization": f"Splunk {config.splunk.hec_token}",
-                    "Content-Type": "application/json"
-                },
-                json=test_event,
-                timeout=10
+            hec_writer = HecWriter(
+                hec_url=config.splunk.hec_url,
+                hec_token=config.splunk.hec_token,
+                verify_ssl=config.splunk.verify_ssl
             )
             
-            if response.status_code == 200:
+            # Test with simple validation event
+            test_event = {
+                "message": "Kepler validation test",
+                "timestamp": datetime.now().isoformat(),
+                "source": "kepler-validator"
+            }
+            
+            success = hec_writer.write_event(
+                event_data=test_event,
+                index=config.splunk.metrics_index,
+                source="kepler-validator",
+                sourcetype="kepler:validation"
+            )
+            
+            if success:
                 return ValidationResult(
                     check_name="Splunk HEC",
                     category=ValidationCategory.FUNCTIONALITY,
@@ -670,8 +675,7 @@ class SplunkValidator:
                     category=ValidationCategory.FUNCTIONALITY,
                     level=ValidationLevel.WARNING,
                     success=False,
-                    message=f"HEC test failed: HTTP {response.status_code}",
-                    details=response.text,
+                    message="HEC validation failed",
                     hint="Check HEC token and endpoint configuration"
                 )
                 
