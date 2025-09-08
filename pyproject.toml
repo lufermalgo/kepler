@@ -169,7 +169,11 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if 0:",
-    "if __name__ == .__main__.:",
-    "class .*\bProtocol\):",
-    "@(abc\.)?abstractmethod",
+    "if __name__ == \\.__main__\\.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
+
+# Hatch build configuration
+[tool.hatch.build.targets.wheel]
+packages = ["kepler"]

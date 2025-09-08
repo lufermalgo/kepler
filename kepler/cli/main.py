@@ -52,14 +52,16 @@ def init(
     logger = get_logger()
     logger.info(f"Initializing Kepler project: {project_name}")
     
-    # Determine project path
+    # Determine project path - always create a directory with the project name
     if path:
-        project_path = Path(path)
-        project_path.mkdir(parents=True, exist_ok=True)
-        logger.debug(f"Using custom project path: {project_path}")
+        base_path = Path(path)
+        project_path = base_path / project_name
     else:
-        project_path = Path.cwd()
-        logger.debug(f"Using current directory: {project_path}")
+        project_path = Path.cwd() / project_name
+    
+    # Create project directory
+    project_path.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Created project directory: {project_path}")
     
     # Initialize project
     project = KeplerProject(str(project_path))
